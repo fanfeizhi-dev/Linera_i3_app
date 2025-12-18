@@ -3,7 +3,7 @@
 A decentralized Modelverse where AI models are discoverable, comparable, composable—and payable via x402 payments end-to-end on Pharos Testnet.
 
 
-**Submission:** Pharos x402 Hackathon – **Best x402 Agent Application**  
+**Submission:** Pharos Hackathon 
 **Status:** Fully working prototype with on-chain payments, model marketplace, benchmarks, workflows, and Canvas editor.
 
 ---
@@ -11,7 +11,7 @@ A decentralized Modelverse where AI models are discoverable, comparable, composa
 ## 🔗 Hackathon Resources
 
 
-* **Demo Video (≤ 3 min):** <https://www.youtube.com/watch?v=aUPYiAM4obg>
+* **Demo Video (≤ 3 min):** 
 
 ---
 
@@ -28,6 +28,9 @@ A decentralized Modelverse where AI models are discoverable, comparable, composa
    - [A) Single-Model Chat Flow](#a-single-model-chat-flow)
    - [B) Modelverse / Benchmark "Try" Flow](#b-modelverse--benchmark-try-flow)
    - [C) Workflow & Canvas Flow](#c-workflow--canvas-flow)
+   - [D) Prepaid API Calls](#d-prepaid-api-calls-token-purchase)
+   - [E) Share Purchase](#e-share-model-ownership-purchase)
+   - [F) Daily Check-in](#f-daily-check-in-rewards)
 8. [Architecture & Tech Stack](#architecture--tech-stack)
    - [Frontend](#frontend)
    - [Backend](#backend)
@@ -137,13 +140,21 @@ i³ is four layers that work together:
 
   * Each card shows **Compute Cost**, **Estimated Gas**, and **Total (x402)** in PHRS.
   * Actions: **Details**, **Pay with x402**.
+  * **Two payment modes**: Prepay once (single tx for all nodes) or Pay per node.
 
 * **Canvas (`canvas.html`)**  
   Visual workflow editor:
 
   * Drag-and-drop nodes (models)
   * Connect them into multi-step pipelines
-  * Click **Run** to execute the pipeline, paying node-by-node through x402.
+  * Click **Run** to execute — choose **Prepay once** or **Pay per node**.
+
+* **MyCart (`mycart.html`)**  
+  Shopping cart for bulk purchases:
+
+  * Add models from Modelverse to cart.
+  * Purchase **API call tokens** (prepaid credits) and **ownership shares**.
+  * Batch checkout with x402 payment.
 
 ### x402 & On-chain Payments
 
@@ -155,6 +166,8 @@ i³ is four layers that work together:
 
   * Users log in and confirm each payment.
   * Every payment is visible on **Pharos Explorer (SocialScan)**.
+* **Prepaid Credits**: Pre-purchase API calls; use them later without additional payments.
+* **Daily Check-in**: Claim daily PHRS rewards to offset usage costs.
 
 ---
 
@@ -188,15 +201,60 @@ i³ is four layers that work together:
 
 ### C. Workflow & Canvas Flow
 
-1. User opens **Workflows** and chooses a workflow card (e.g. "AI Safety & Watermarking Pipeline"), then clicks **Pay with x402**.
-2. The app opens **Canvas**, pre-loading the workflow graph.
-3. User optionally edits the graph and clicks **Run**.
-4. Backend:
+Users can run multi-model workflows with **two payment options**:
 
-   * Calculates the required price for the first node and returns a 402.
-   * After payment, verifies the Pharos transfer and executes that node.
-   * Repeats the 402/payment cycle for each remaining node until the workflow completes.
-5. Final results surface back through the **Chats** interface.
+#### Option 1: Prepay Once (Recommended)
+Pay a single transaction upfront for all nodes in the workflow.
+
+1. User opens **Workflows** and clicks **Pay with x402** on a workflow card.
+2. A dialog appears: **"Prepay once"** vs. **"Pay per node"** — user selects **Prepay once**.
+3. The app requests a **single x402 invoice** covering all nodes:
+   * Backend calculates total cost = Σ (compute cost + gas) for all nodes.
+   * Returns a 402 with a detailed **cost breakdown** per node.
+4. User pays once via MetaMask (single transaction).
+5. After payment verification, the user receives a **workflow_session_id**.
+6. The app opens **Canvas** (or redirects to **Chats**); all nodes execute **without additional payments**.
+
+#### Option 2: Pay Per Node
+Pay for each node separately as it executes.
+
+1. User selects **Pay per node** in the dialog.
+2. The app opens **Canvas**, pre-loading the workflow graph.
+3. User clicks **Run**; backend returns a 402 for the **first node only**.
+4. User pays via MetaMask; node executes.
+5. Backend returns a 402 for the **next node**; repeat until all nodes complete.
+6. Final results surface back through the **Chats** interface.
+
+| Mode | Transactions | Use Case |
+|------|--------------|----------|
+| **Prepay Once** | 1 | Run entire workflow seamlessly |
+| **Pay Per Node** | N (one per node) | Review/cancel midway |
+
+### D. Prepaid API Calls (Token Purchase)
+
+Users can **pre-purchase API calls** from Modelverse or MyCart. Once purchased, subsequent model invocations are **free** until the credits are exhausted.
+
+1. User visits **Modelverse** and clicks **Buy Tokens** (or adds to cart via **MyCart**).
+2. An x402 invoice is generated for the desired number of API calls.
+3. User pays via MetaMask; tokens are credited to their account.
+4. When the user later invokes the same model:
+   * Frontend detects **prepaid credits** in `localStorage`.
+   * Sends a special header: `X-PAYMENT: prepaid model=xxx; remaining=N; nonce=...`
+   * Backend **skips payment verification** and executes the model directly.
+   * Remaining credits are decremented locally.
+5. When credits reach zero, the user must purchase more or pay per-call.
+
+### E. Share (Model Ownership) Purchase
+
+Users can buy **ownership shares** of AI models via the `/mcp/share.buy` endpoint:
+
+1. User selects a model and chooses **Buy Shares**.
+2. Backend generates an x402 invoice for the share price × quantity.
+3. User pays via MetaMask; shares are recorded in **My Assets**.
+4. Share ownership enables:
+   * Revenue sharing from model usage fees.
+   * Governance rights (future roadmap).
+   * Open-source transition when >51% is publicly held.
 
 ---
 

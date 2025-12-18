@@ -21601,6 +21601,722 @@
       "tx_signature": "0x9f0cb87f9b9a2ec5ca51cbffe8630ddde112137c6f4b79f88077dc1d5362d0b8",
       "paid_at": "2025-12-03T01:19:48.088Z",
       "completed_at": "2025-12-03T01:19:48.088Z"
+    },
+    {
+      "id": "60dd82e3-9c1a-44f9-b448-dd595600b1f6",
+      "status": "pending_payment",
+      "created_at": "2025-12-09T01:38:59.285Z",
+      "updated_at": "2025-12-09T01:38:59.285Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "49d883a2-76f9-4b2f-b775-68b7559e0bd8",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 18 chars"
+        },
+        "wallet_address": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+        "prompt": "what does this do?",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+      "request_id": "5579f495-506b-41db-b238-83fcfa638651",
+      "nonce": "8437fc4e-8889-45eb-af04-00ec0deb6067",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-09T01:43:59.285Z"
+    },
+    {
+      "id": "730de002-1aaa-407f-9676-48a20712be33",
+      "status": "completed",
+      "created_at": "2025-12-09T01:39:08.270Z",
+      "updated_at": "2025-12-09T01:39:17.136Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "88f2d261-87e7-4607-8347-733a5955b382",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 18 chars"
+        },
+        "wallet_address": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+        "prompt": "what does this do?",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner",
+        "verification": {
+          "ok": true,
+          "payer": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+          "explorerLink": "https://pharos-testnet.socialscan.io/tx/0x441b3613eba6cbb15361c06de15eb665224db35671cfd6e7a4cd65b9741f0fd6",
+          "explorerUrl": "https://pharos-testnet.socialscan.io/tx/0x441b3613eba6cbb15361c06de15eb665224db35671cfd6e7a4cd65b9741f0fd6"
+        },
+        "result": {
+          "output": "As a finetuned specialized niche model, Could you please provide more context or specify what \"this\" refers to? That way, I can give you a more accurate and helpful response.",
+          "usage": {
+            "prompt_tokens": 394,
+            "completion_tokens": 29,
+            "total_tokens": 423,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "model": "AI-Text-Detector-Examiner",
+          "raw": {
+            "success": true,
+            "data": {
+              "id": "chatcmpl-Ckgz6A2AZUkjjf16o4ZmNR4LQg33i",
+              "object": "chat.completion",
+              "created": 1765244356,
+              "model": "i3-model",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "As a finetuned specialized niche model, Could you please provide more context or specify what \"this\" refers to? That way, I can give you a more accurate and helpful response.",
+                    "refusal": null,
+                    "annotations": []
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 394,
+                "completion_tokens": 29,
+                "total_tokens": 423,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "system_fingerprint": "fp_11f3029f6b"
+            },
+            "error": null,
+            "status_code": 200,
+            "provider": "i3",
+            "request_id": "chatcmpl-Ckgz6A2AZUkjjf16o4ZmNR4LQg33i"
+          },
+          "error": null,
+          "warning": null
+        }
+      },
+      "type": "infer",
+      "user_id": "wallet:0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+      "request_id": "a72214f2-09e3-4de6-84b1-2fc140d238f2",
+      "nonce": "0b6a7c7b-794a-4817-9811-235f8c6054b9",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-09T01:44:08.270Z",
+      "tx_signature": "0x441b3613eba6cbb15361c06de15eb665224db35671cfd6e7a4cd65b9741f0fd6",
+      "paid_at": "2025-12-09T01:39:14.764Z",
+      "completed_at": "2025-12-09T01:39:17.136Z"
+    },
+    {
+      "id": "8f855f67-926b-4086-9b19-796688600d7d",
+      "status": "completed",
+      "created_at": "2025-12-09T01:39:34.506Z",
+      "updated_at": "2025-12-09T01:39:41.337Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "5d2dc67b-fcaf-4a46-b27a-7ca6fab1a1ae",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 18 chars"
+        },
+        "wallet_address": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+        "prompt": "what does this do?",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner",
+        "verification": {
+          "ok": true,
+          "payer": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+          "explorerLink": "https://pharos-testnet.socialscan.io/tx/0x968fdf38a69fbca2a69b5364611e7ade05b04d5534bcad3d04fcd50bbeca67fa",
+          "explorerUrl": "https://pharos-testnet.socialscan.io/tx/0x968fdf38a69fbca2a69b5364611e7ade05b04d5534bcad3d04fcd50bbeca67fa"
+        },
+        "result": {
+          "output": "As a finetuned specialized niche model, Could you please provide more context or specify what \"this\" refers to? Are you asking about a specific tool, model, or concept related to AI detection or analysis? This will help me give you a more accurate response.",
+          "usage": {
+            "prompt_tokens": 394,
+            "completion_tokens": 45,
+            "total_tokens": 439,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "model": "AI-Text-Detector-Examiner",
+          "raw": {
+            "success": true,
+            "data": {
+              "id": "chatcmpl-CkgzURjzoxrTuClo0sPCXTD8PDh9F",
+              "object": "chat.completion",
+              "created": 1765244380,
+              "model": "i3-model",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "As a finetuned specialized niche model, Could you please provide more context or specify what \"this\" refers to? Are you asking about a specific tool, model, or concept related to AI detection or analysis? This will help me give you a more accurate response.",
+                    "refusal": null,
+                    "annotations": []
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 394,
+                "completion_tokens": 45,
+                "total_tokens": 439,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "system_fingerprint": "fp_11f3029f6b"
+            },
+            "error": null,
+            "status_code": 200,
+            "provider": "i3",
+            "request_id": "chatcmpl-CkgzURjzoxrTuClo0sPCXTD8PDh9F"
+          },
+          "error": null,
+          "warning": null
+        }
+      },
+      "type": "infer",
+      "user_id": "wallet:0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+      "request_id": "be595d62-20cc-436f-8f27-db7eb24b0589",
+      "nonce": "603e327f-fb32-4a93-8c70-48ae2c035acd",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-09T01:44:34.506Z",
+      "tx_signature": "0x968fdf38a69fbca2a69b5364611e7ade05b04d5534bcad3d04fcd50bbeca67fa",
+      "paid_at": "2025-12-09T01:39:38.677Z",
+      "completed_at": "2025-12-09T01:39:41.337Z"
+    },
+    {
+      "id": "1374b1ad-f364-45f1-a6c6-a3cc6da67659",
+      "status": "completed",
+      "created_at": "2025-12-09T01:43:21.162Z",
+      "updated_at": "2025-12-09T01:43:52.956Z",
+      "meta": {
+        "workflow_name": "AI Safety & Watermarking Pipeline",
+        "nodes": [
+          {
+            "id": "a8439106-836b-451a-bca7-26c8d62d45ec",
+            "name": "AI-Text-Detector-Examiner",
+            "calls": 2,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            },
+            "computeCost": 0.00018,
+            "gasCost": 0.0005,
+            "totalCost": 0.00068
+          },
+          {
+            "id": "92e87ba9-6061-409f-8c5c-ca345de9bbd4",
+            "name": "SafeKey-Safety-Reasoner",
+            "calls": 1,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.0008,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 5
+            },
+            "computeCost": 0.0008,
+            "gasCost": 0.00025,
+            "totalCost": 0.00105
+          },
+          {
+            "id": "36b75261-a804-4c54-a9f7-33aef9aa8f85",
+            "name": "Invisible-Watermark-Remover",
+            "calls": 3,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00006,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 3.21
+            },
+            "computeCost": 0.00018,
+            "gasCost": 0.00075,
+            "totalCost": 0.00093
+          },
+          {
+            "id": "a0810875-59bd-4181-8060-aaf1954d66fe",
+            "name": "Context-Watermarker",
+            "calls": 1,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00008,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 6.79
+            },
+            "computeCost": 0.00008,
+            "gasCost": 0.00025,
+            "totalCost": 0.00033
+          }
+        ],
+        "wallet_address": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+        "node_count": 4,
+        "description": "Prepay for workflow: AI Safety & Watermarking Pipeline",
+        "verification": {
+          "ok": true,
+          "payer": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+          "explorerLink": "https://pharos-testnet.socialscan.io/tx/0x5e503983bebc702be18c06e82986751a70527993a5443ba72bb59994bb485e00",
+          "explorerUrl": "https://pharos-testnet.socialscan.io/tx/0x5e503983bebc702be18c06e82986751a70527993a5443ba72bb59994bb485e00"
+        },
+        "workflow_session_id": "f6e90911-5f07-4d56-a60e-c305cf3f27c5",
+        "prepaid_at": "2025-12-09T01:43:52.941Z"
+      },
+      "type": "workflow_prepay",
+      "user_id": "wallet:0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+      "request_id": "9741f158-ef9c-4d05-9f3d-bdad7e9e27d2",
+      "nonce": "1367954e-7467-4ecc-adef-87cda837fe53",
+      "amount_usdc": 0.00299,
+      "model_or_node": "AI Safety & Watermarking Pipeline",
+      "tokens_or_calls": 4,
+      "expires_at": "2025-12-09T01:48:21.161Z",
+      "tx_signature": "0x5e503983bebc702be18c06e82986751a70527993a5443ba72bb59994bb485e00",
+      "paid_at": "2025-12-09T01:43:52.941Z",
+      "completed_at": "2025-12-09T01:43:52.941Z"
+    },
+    {
+      "id": "ca32ec0a-e8e9-490c-941b-9328443aee62",
+      "status": "completed",
+      "created_at": "2025-12-09T01:45:10.364Z",
+      "updated_at": "2025-12-09T01:45:34.302Z",
+      "meta": {
+        "workflow_name": "Model Optimization & Training Suite",
+        "nodes": [
+          {
+            "id": "365c7951-5003-423b-8223-501dd37aa5d1",
+            "name": "Hierarchical-Bayesian-Inference",
+            "calls": 2,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 1.15
+            },
+            "computeCost": 0.00018,
+            "gasCost": 0.0005,
+            "totalCost": 0.00068
+          },
+          {
+            "id": "e0da7dac-9982-46d3-8a8c-a970971e4226",
+            "name": "Normative-Causal-Inference",
+            "calls": 1,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00007,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 16
+            },
+            "computeCost": 0.00007,
+            "gasCost": 0.00025,
+            "totalCost": 0.00032
+          },
+          {
+            "id": "fbd2e988-63e7-4b4a-b0dd-a459c5e0d908",
+            "name": "BDP-Rank-Bayesian-Decision-Process",
+            "calls": 2,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 18.38
+            },
+            "computeCost": 0.00018,
+            "gasCost": 0.0005,
+            "totalCost": 0.00068
+          },
+          {
+            "id": "cc2ec2d3-0114-48ac-ba0e-b0c56c1afaaa",
+            "name": "BPTF-Bayesian-Tensor-Factorization",
+            "calls": 1,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00004,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 13.54
+            },
+            "computeCost": 0.00004,
+            "gasCost": 0.00025,
+            "totalCost": 0.00029
+          }
+        ],
+        "wallet_address": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+        "node_count": 4,
+        "description": "Prepay for workflow: Model Optimization & Training Suite",
+        "verification": {
+          "ok": true,
+          "payer": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+          "explorerLink": "https://pharos-testnet.socialscan.io/tx/0xdec0a1d51386543f6762e416db5cdb6c6f6b24c355ee28cad3b44cfa6af841fc",
+          "explorerUrl": "https://pharos-testnet.socialscan.io/tx/0xdec0a1d51386543f6762e416db5cdb6c6f6b24c355ee28cad3b44cfa6af841fc"
+        },
+        "workflow_session_id": "a2226a2b-985a-4e2d-9562-3f601c3408fc",
+        "prepaid_at": "2025-12-09T01:45:34.287Z"
+      },
+      "type": "workflow_prepay",
+      "user_id": "wallet:0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+      "request_id": "ea0478cd-aac7-48e1-90ca-1426b882f3c3",
+      "nonce": "2db761bb-3514-406a-88da-4a36ffaa398e",
+      "amount_usdc": 0.00197,
+      "model_or_node": "Model Optimization & Training Suite",
+      "tokens_or_calls": 4,
+      "expires_at": "2025-12-09T01:50:10.364Z",
+      "tx_signature": "0xdec0a1d51386543f6762e416db5cdb6c6f6b24c355ee28cad3b44cfa6af841fc",
+      "paid_at": "2025-12-09T01:45:34.287Z",
+      "completed_at": "2025-12-09T01:45:34.287Z"
+    },
+    {
+      "id": "97de1813-8e61-4a39-ba36-e0067a1bb136",
+      "status": "completed",
+      "created_at": "2025-12-09T01:46:41.831Z",
+      "updated_at": "2025-12-09T01:47:01.471Z",
+      "meta": {
+        "workflow_name": "workflow21",
+        "nodes": [
+          {
+            "id": "2475d3cc-923f-4274-8545-2bfd4615ecf3",
+            "name": "SafeKey-Safety-Reasoner",
+            "calls": 1,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.0008,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 5
+            },
+            "computeCost": 0.0008,
+            "gasCost": 0.00025,
+            "totalCost": 0.00105
+          },
+          {
+            "id": "2c42d835-eacf-443e-8091-901699df7d62",
+            "name": "Context-Watermarker",
+            "calls": 1,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00008,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 6.79
+            },
+            "computeCost": 0.00008,
+            "gasCost": 0.00025,
+            "totalCost": 0.00033
+          },
+          {
+            "id": "131f82f6-7170-4aff-bf14-a6db42a1d60c",
+            "name": "Multi-Scale-PET-GCN",
+            "calls": 2,
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00006,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 4.72
+            },
+            "computeCost": 0.00012,
+            "gasCost": 0.0005,
+            "totalCost": 0.00062
+          }
+        ],
+        "wallet_address": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+        "node_count": 3,
+        "description": "Prepay for workflow: workflow21",
+        "verification": {
+          "ok": true,
+          "payer": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+          "explorerLink": "https://pharos-testnet.socialscan.io/tx/0x7e79f96970c09e7cb2dbf5f292e36d660f9ce303725395ab8e96a515989ca320",
+          "explorerUrl": "https://pharos-testnet.socialscan.io/tx/0x7e79f96970c09e7cb2dbf5f292e36d660f9ce303725395ab8e96a515989ca320"
+        },
+        "workflow_session_id": "871589b0-e136-46a2-8930-ca4c3603c40c",
+        "prepaid_at": "2025-12-09T01:47:01.457Z"
+      },
+      "type": "workflow_prepay",
+      "user_id": "wallet:0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+      "request_id": "52e0dfdc-ced0-4a95-8b54-5a3ce87e3bd1",
+      "nonce": "51b54a62-ad91-4f54-b5d6-4bc01c038987",
+      "amount_usdc": 0.002,
+      "model_or_node": "workflow21",
+      "tokens_or_calls": 3,
+      "expires_at": "2025-12-09T01:51:41.831Z",
+      "tx_signature": "0x7e79f96970c09e7cb2dbf5f292e36d660f9ce303725395ab8e96a515989ca320",
+      "paid_at": "2025-12-09T01:47:01.457Z",
+      "completed_at": "2025-12-09T01:47:01.457Z"
+    },
+    {
+      "id": "c439e2a7-1668-4544-a693-a90511d66e5e",
+      "status": "completed",
+      "created_at": "2025-12-09T01:47:50.247Z",
+      "updated_at": "2025-12-09T01:48:02.804Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "44fcd166-2cdc-4711-a6af-6b044ba93f69",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 63 chars"
+        },
+        "wallet_address": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+        "prompt": "What broader concern does DIS-CO raise about VLM training data?",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner",
+        "verification": {
+          "ok": true,
+          "payer": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+          "explorerLink": "https://pharos-testnet.socialscan.io/tx/0x44200465801a657d99a532e2a380132251b92b03b282bc4ed82cfea0eae904f1",
+          "explorerUrl": "https://pharos-testnet.socialscan.io/tx/0x44200465801a657d99a532e2a380132251b92b03b282bc4ed82cfea0eae904f1"
+        },
+        "result": {
+          "output": "⚠️ Content flagged for potential safety concerns\n\nAs a finetuned specialized niche model, DIS-CO raises concerns about the quality and representativeness of training data used for Vision-Language Models (VLMs). Specifically, it highlights issues related to bias, fairness, and the potential for harmful stereotypes embedded within the data. The reliance on large datasets that may contain uncurated or unfiltered content can lead to models that reinforce existing biases, misrepresent marginalized groups, and produce unsafe or misleading outputs. This emphasizes the need for careful curation and evaluation of training data to ensure that VLMs are developed responsibly and ethically.",
+          "usage": {
+            "prompt_tokens": 412,
+            "completion_tokens": 109,
+            "total_tokens": 521,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "model": "AI-Text-Detector-Examiner",
+          "raw": {
+            "success": true,
+            "data": {
+              "id": "chatcmpl-Ckh7YFqbHUpcg9X5CCQDebHBMn462",
+              "object": "chat.completion",
+              "created": 1765244880,
+              "model": "i3-model",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "⚠️ Content flagged for potential safety concerns\n\nAs a finetuned specialized niche model, DIS-CO raises concerns about the quality and representativeness of training data used for Vision-Language Models (VLMs). Specifically, it highlights issues related to bias, fairness, and the potential for harmful stereotypes embedded within the data. The reliance on large datasets that may contain uncurated or unfiltered content can lead to models that reinforce existing biases, misrepresent marginalized groups, and produce unsafe or misleading outputs. This emphasizes the need for careful curation and evaluation of training data to ensure that VLMs are developed responsibly and ethically.",
+                    "refusal": null,
+                    "annotations": []
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 412,
+                "completion_tokens": 109,
+                "total_tokens": 521,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "system_fingerprint": "fp_11f3029f6b"
+            },
+            "error": null,
+            "status_code": 200,
+            "provider": "i3",
+            "request_id": "chatcmpl-Ckh7YFqbHUpcg9X5CCQDebHBMn462"
+          },
+          "error": null,
+          "warning": null
+        }
+      },
+      "type": "infer",
+      "user_id": "wallet:0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+      "request_id": "10361fb4-bd0f-4271-ad2c-9266dcd1a5b1",
+      "nonce": "33a1a265-6f71-4f52-93d5-27f9260363b5",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-09T01:52:50.247Z",
+      "tx_signature": "0x44200465801a657d99a532e2a380132251b92b03b282bc4ed82cfea0eae904f1",
+      "paid_at": "2025-12-09T01:47:59.441Z",
+      "completed_at": "2025-12-09T01:48:02.804Z"
+    },
+    {
+      "id": "1498f895-2907-4e99-a88b-71e8268cc907",
+      "status": "completed",
+      "created_at": "2025-12-09T01:48:47.900Z",
+      "updated_at": "2025-12-09T01:49:00.513Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "c241ca3b-058f-41f4-8754-6bcfdfadbc54",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 63 chars"
+        },
+        "wallet_address": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+        "prompt": "What broader concern does DIS-CO raise about VLM training data?",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner",
+        "verification": {
+          "ok": true,
+          "payer": "0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+          "explorerLink": "https://pharos-testnet.socialscan.io/tx/0xbde09aec106ac0f67a289aed9efb489a9fd2d4802faa1465b72b4997f1fc79e3",
+          "explorerUrl": "https://pharos-testnet.socialscan.io/tx/0xbde09aec106ac0f67a289aed9efb489a9fd2d4802faa1465b72b4997f1fc79e3"
+        },
+        "result": {
+          "output": "⚠️ Content flagged for potential safety concerns\n\nAs a finetuned specialized niche model, DIS-CO highlights concerns regarding the quality and diversity of training data used for Vision-Language Models (VLMs). A major issue is that VLMs often rely on large datasets scraped from the internet, which can contain biased, inaccurate, or harmful content. This can lead to the models perpetuating stereotypes, misinformation, or other undesirable outcomes in their outputs. Furthermore, the lack of comprehensive representation in the training data can limit the models' performance across different contexts and demographics, raising ethical implications for their deployment in real-world applications. Addressing these concerns is crucial for ensuring that VLMs are safe, fair, and reliable.",
+          "usage": {
+            "prompt_tokens": 412,
+            "completion_tokens": 127,
+            "total_tokens": 539,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "model": "AI-Text-Detector-Examiner",
+          "raw": {
+            "success": true,
+            "data": {
+              "id": "chatcmpl-Ckh8UU1L9AtKFXr14kk3klMQkRhbk",
+              "object": "chat.completion",
+              "created": 1765244938,
+              "model": "i3-model",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "⚠️ Content flagged for potential safety concerns\n\nAs a finetuned specialized niche model, DIS-CO highlights concerns regarding the quality and diversity of training data used for Vision-Language Models (VLMs). A major issue is that VLMs often rely on large datasets scraped from the internet, which can contain biased, inaccurate, or harmful content. This can lead to the models perpetuating stereotypes, misinformation, or other undesirable outcomes in their outputs. Furthermore, the lack of comprehensive representation in the training data can limit the models' performance across different contexts and demographics, raising ethical implications for their deployment in real-world applications. Addressing these concerns is crucial for ensuring that VLMs are safe, fair, and reliable.",
+                    "refusal": null,
+                    "annotations": []
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 412,
+                "completion_tokens": 127,
+                "total_tokens": 539,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "system_fingerprint": "fp_11f3029f6b"
+            },
+            "error": null,
+            "status_code": 200,
+            "provider": "i3",
+            "request_id": "chatcmpl-Ckh8UU1L9AtKFXr14kk3klMQkRhbk"
+          },
+          "error": null,
+          "warning": null
+        }
+      },
+      "type": "infer",
+      "user_id": "wallet:0xaebe932564682ead2055bf4c8ac9e7c8b9439313",
+      "request_id": "8df4e41c-8b18-4265-8b7b-7ee07b39bfd3",
+      "nonce": "b946ab31-9f18-44d8-b678-26e85a98b0ae",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-09T01:53:47.900Z",
+      "tx_signature": "0xbde09aec106ac0f67a289aed9efb489a9fd2d4802faa1465b72b4997f1fc79e3",
+      "paid_at": "2025-12-09T01:48:56.677Z",
+      "completed_at": "2025-12-09T01:49:00.512Z"
     }
   ]
 }
