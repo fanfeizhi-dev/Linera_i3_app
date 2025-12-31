@@ -22317,6 +22317,321 @@
       "tx_signature": "0xbde09aec106ac0f67a289aed9efb489a9fd2d4802faa1465b72b4997f1fc79e3",
       "paid_at": "2025-12-09T01:48:56.677Z",
       "completed_at": "2025-12-09T01:49:00.512Z"
+    },
+    {
+      "id": "693aa732-af58-4f93-a9a3-6fcc76c67d6b",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:33:10.415Z",
+      "updated_at": "2025-12-31T08:33:10.415Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "f5318a0d-8aab-450a-b364-de183eb722ac",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "0xbb6a84d0b146b9643befe09d89cf69170f86ff05",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:0xbb6a84d0b146b9643befe09d89cf69170f86ff05",
+      "request_id": "c2e24afa-1ddf-4c96-b5ec-daf2c4fa55ec",
+      "nonce": "05cbf1cb-0dd3-44bb-adde-fd3b3fff16bb",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:38:10.415Z"
+    },
+    {
+      "id": "282044cb-7e2f-4f75-aa6f-30cb598bad07",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:33:37.810Z",
+      "updated_at": "2025-12-31T08:33:37.810Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "7ef2dc88-16f9-441d-be23-6957567c1200",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "0xbb6a84d0b146b9643befe09d89cf69170f86ff05",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:0xbb6a84d0b146b9643befe09d89cf69170f86ff05",
+      "request_id": "3808ddb3-fa27-4bfd-80c7-93cc031a0643",
+      "nonce": "8bea58ef-e92f-44e3-9075-e2e6366ba794",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:38:37.810Z"
+    },
+    {
+      "id": "ffa56e24-d682-4e77-9835-e0d4002fa8fc",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:33:53.347Z",
+      "updated_at": "2025-12-31T08:33:53.347Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "0fc8b626-9e97-49bf-bf00-1e886ab3c7ed",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "5Qj4LVKBNUNNUcw4Caijb1zYgwN9tsRDFHV8HehYfrw6",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:5qj4lvkbnunnucw4caijb1zygwn9tsrdfhv8hehyfrw6",
+      "request_id": "905dce21-1b37-407f-9fd7-1055d68c764a",
+      "nonce": "4bd31286-a551-4983-b4ba-2044b74ab1ca",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:38:53.347Z"
+    },
+    {
+      "id": "d88a51bb-cefa-4c4f-8ba5-9fcbf00b7c9a",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:34:19.606Z",
+      "updated_at": "2025-12-31T08:34:19.606Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "b16241a8-3dbf-4335-9f38-7df1260e5280",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "5Qj4LVKBNUNNUcw4Caijb1zYgwN9tsRDFHV8HehYfrw6",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:5qj4lvkbnunnucw4caijb1zygwn9tsrdfhv8hehyfrw6",
+      "request_id": "55404e75-a311-48d7-b0a2-8f5394242f9a",
+      "nonce": "cf2a20b7-6f37-4be6-b5f1-e33d979d9509",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:39:19.606Z"
+    },
+    {
+      "id": "9055d6c1-b2d6-405a-8972-ac487cdf9ce3",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:34:19.724Z",
+      "updated_at": "2025-12-31T08:34:19.724Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "6c401576-1ea0-48e2-bde2-c36034feeacd",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "5Qj4LVKBNUNNUcw4Caijb1zYgwN9tsRDFHV8HehYfrw6",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:5qj4lvkbnunnucw4caijb1zygwn9tsrdfhv8hehyfrw6",
+      "request_id": "680ea9fc-7e55-4ea8-8500-ff5dc62d388f",
+      "nonce": "4e67e3c7-9ced-4ed0-ad7f-1218a689f7af",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:39:19.723Z"
+    },
+    {
+      "id": "b07b3843-2f50-44dc-a147-af90772229f4",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:34:39.592Z",
+      "updated_at": "2025-12-31T08:34:39.592Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "c70f7641-0575-4a6c-9d79-82f9949a862d",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "5Qj4LVKBNUNNUcw4Caijb1zYgwN9tsRDFHV8HehYfrw6",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:5qj4lvkbnunnucw4caijb1zygwn9tsrdfhv8hehyfrw6",
+      "request_id": "5a06f9ce-6036-4e30-bb8b-b77e9023be56",
+      "nonce": "bdbee590-0b6d-4a0a-9681-800638be3f2f",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:39:39.592Z"
+    },
+    {
+      "id": "e4ff2d48-15e1-4903-ab9f-a75d884b957a",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:34:39.659Z",
+      "updated_at": "2025-12-31T08:34:39.659Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "683ed1a9-98b0-435c-bca0-5da97b51fd16",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "5Qj4LVKBNUNNUcw4Caijb1zYgwN9tsRDFHV8HehYfrw6",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:5qj4lvkbnunnucw4caijb1zygwn9tsrdfhv8hehyfrw6",
+      "request_id": "068c2b73-be17-4541-ade1-d4302f305558",
+      "nonce": "029ca27d-70a2-48be-9841-c34b1ec428de",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:39:39.658Z"
+    },
+    {
+      "id": "69f5210e-2105-42f5-bc00-16c4a8e6b450",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:35:06.371Z",
+      "updated_at": "2025-12-31T08:35:06.371Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "622fcc94-4847-478b-abdc-55bad2c64e84",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "5Qj4LVKBNUNNUcw4Caijb1zYgwN9tsRDFHV8HehYfrw6",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:5qj4lvkbnunnucw4caijb1zygwn9tsrdfhv8hehyfrw6",
+      "request_id": "497c5e74-ba3e-427f-b812-41419e5992ba",
+      "nonce": "4ba1bc3d-e64f-4c0a-80d5-7e8836b879b9",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:40:06.371Z"
+    },
+    {
+      "id": "1066c3c0-20f3-4baf-8718-76ac1071e471",
+      "status": "pending_payment",
+      "created_at": "2025-12-31T08:35:06.485Z",
+      "updated_at": "2025-12-31T08:35:06.485Z",
+      "meta": {
+        "auto_router": {
+          "requestId": "05947ceb-c02f-45a4-9ff9-24011472fbcf",
+          "model": {
+            "id": "AI-Text-Detector-Examiner",
+            "version": "latest",
+            "category": "Model Analysis",
+            "pricing": {
+              "currency": "PHRS",
+              "pricePerCallUsdc": 0.00009,
+              "gasPerCallUsdc": 0.00025,
+              "sharePriceUsdc": 14.73
+            }
+          },
+          "reasoning": "Selected model \"AI-Text-Detector-Examiner\" with score 99. Prompt length 31 chars"
+        },
+        "wallet_address": "5Qj4LVKBNUNNUcw4Caijb1zYgwN9tsRDFHV8HehYfrw6",
+        "prompt": "tell me more about watermarking",
+        "model_name": "AI-Text-Detector-Examiner",
+        "description": "Invoke AI-Text-Detector-Examiner"
+      },
+      "type": "infer",
+      "user_id": "wallet:5qj4lvkbnunnucw4caijb1zygwn9tsrdfhv8hehyfrw6",
+      "request_id": "df03928e-ce45-4111-bc7c-ae6f8c369550",
+      "nonce": "a875c7c6-902c-4bba-9670-30eab7d30d7b",
+      "amount_usdc": 0.00034,
+      "model_or_node": "AI-Text-Detector-Examiner",
+      "tokens_or_calls": 1,
+      "expires_at": "2025-12-31T08:40:06.485Z"
     }
   ]
 }
