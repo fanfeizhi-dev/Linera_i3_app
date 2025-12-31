@@ -12,7 +12,7 @@ console.log('✅ Dependencies loaded successfully');
 const app = express();
 
 // ✅ Cloud Run requirements
-const PORT = Number(process.env.PORT) || 8080;
+const PORT = Number(process.env.PORT) || 3000;  // 本地开发使用 3000，Cloud Run 会自动设置 PORT 环境变量
 const HOST = '0.0.0.0';
 
 console.log(`🔧 Server configuration: HOST=${HOST}, PORT=${PORT}, NODE_ENV=${process.env.NODE_ENV || 'development'}`);
