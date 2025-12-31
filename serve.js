@@ -10,8 +10,10 @@ const mcpRouter = require('./server/mcp/router');
 console.log('✅ Dependencies loaded successfully');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '127.0.0.1';
+
+// ✅ Cloud Run requirements
+const PORT = Number(process.env.PORT) || 8080;
+const HOST = '0.0.0.0';
 
 console.log(`🔧 Server configuration: HOST=${HOST}, PORT=${PORT}, NODE_ENV=${process.env.NODE_ENV || 'development'}`);
 
@@ -28,8 +30,9 @@ app.use(express.json());
 // MCP / x402 routes
 app.use('/mcp', mcpRouter);
 
-// Serve static files
-app.use(express.static(__dirname));
+// ✅ Serve Vite build output
+const distPath = path.join(__dirname, 'dist');
+app.use(express.static(distPath));
 
 // API routes
 app.get('/api/health', (req, res) => {
@@ -183,17 +186,14 @@ app.post('/api/chat/completions', async (req, res) => {
   }
 });
 
-// Serve the main page
+// ✅ Serve main page from dist
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// Handle 404s
-app.use((req, res) => {
-  res.status(404).json({ 
-    error: 'Not Found',
-    message: 'The requested resource was not found'
-  });
+// ✅ Optional SPA fallback (safe to keep)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Error handling middleware
