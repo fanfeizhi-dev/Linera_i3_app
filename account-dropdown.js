@@ -6,6 +6,7 @@
     <div class="account-dropdown">
       <button class="account-btn" onclick="toggleAccountDropdown()" id="accountBtn">
         <span id="accountBtnText">Login</span>
+        <span id="linDisplay" style="display:none;margin-left:8px;font-size:12px;color:#ffffff;font-weight:600;opacity:0.98;text-shadow:0 1px 2px rgba(0,0,0,0.35);"></span>
         <span id="usdcDisplay" style="display:none;margin-left:8px;font-size:12px;color:#ffffff;font-weight:600;opacity:0.98;text-shadow:0 1px 2px rgba(0,0,0,0.35);"></span>
       </button>
       <div class="dropdown-content" id="accountDropdown">
@@ -154,6 +155,7 @@
     const lineraInfoSection = document.getElementById('lineraInfoSection');
     const lineraChainIdValue = document.getElementById('lineraChainIdValue');
     const lineraBalanceValue = document.getElementById('lineraBalanceValue');
+    const linDisplay = document.getElementById('linDisplay');
     const accountBtnText = document.getElementById('accountBtnText');
     
     const wm = window.walletManager;
@@ -254,11 +256,21 @@
             
             lineraBalanceValue.textContent = balance;
             lineraBalanceValue.style.color = '#10b981';
+            
+            // 在按钮上显示 LIN 余额（最多2位小数）
+            if (linDisplay) {
+              linDisplay.style.display = 'inline';
+              const displayBal = (parseFloat(balance) || 0).toFixed(2);
+              linDisplay.textContent = `${displayBal} LIN`;
+            }
           }
         } else {
           // Linera 还未初始化
           if (lineraInfoSection) lineraInfoSection.style.display = 'none';
+          if (linDisplay) linDisplay.style.display = 'none';
         }
+      } else {
+        if (linDisplay) linDisplay.style.display = 'none';
       }
     } else {
       // 未连接状态
@@ -272,6 +284,7 @@
       if (connectBtn) connectBtn.style.display = 'block';
       if (disconnectSection) disconnectSection.style.display = 'none';
       if (lineraInfoSection) lineraInfoSection.style.display = 'none';
+      if (linDisplay) linDisplay.style.display = 'none';
     }
   }
 
@@ -280,6 +293,7 @@
     window.addEventListener('walletUpdated', refreshWalletInfoUI);
     window.addEventListener('walletDisconnected', refreshWalletInfoUI);
     window.addEventListener('lineraWalletConnected', refreshWalletInfoUI);
+    window.addEventListener('lineraBalanceUpdated', refreshWalletInfoUI);
     // Also attempt initial render on DOM ready
     document.addEventListener('DOMContentLoaded', function(){
       try { refreshWalletInfoUI(); } catch (_) {}

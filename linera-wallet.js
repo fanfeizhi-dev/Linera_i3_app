@@ -38,6 +38,30 @@ let lineraState = {
 // 设为 true 时 chat 通过 402 → MetaMask 签名 → 重试，不依赖 WASM
 const PREFER_GRAPHQL_MODE = true;
 
+/** 持久化余额到 localStorage（支付后模拟扣减需跨刷新保留） */
+function _persistBalance(owner, balance) {
+  try {
+    if (owner && balance != null) {
+      localStorage.setItem(`linera_balance_${owner.toLowerCase()}`, String(balance));
+    }
+  } catch (_) {}
+}
+
+/** 支付成功后减少本地余额（签名模式无真实转账，需模拟扣减） */
+function decreaseLineraBalance(amount) {
+  const owner = lineraState.ownerAddress;
+  if (!owner) return;
+  const amt = parseFloat(String(amount || 0));
+  if (isNaN(amt) || amt <= 0) return;
+  let current = parseFloat(String(lineraState.balance || 0));
+  if (isNaN(current)) current = 100;
+  const next = Math.max(0, current - amt);
+  lineraState.balance = String(next);
+  _persistBalance(owner, lineraState.balance);
+  window.dispatchEvent(new CustomEvent('lineraBalanceUpdated', { detail: { balance: lineraState.balance } }));
+  console.log('[LineraWallet] Balance decreased:', current, '-', amt, '=', next, 'LIN');
+}
+
 // Linera Web SDK 加载方式
 const USE_LOCAL_PACKAGES = true;
 
@@ -388,12 +412,23 @@ async function connectLineraWalletGraphQL() {
     }
   } else {
     console.log('[LineraWallet] Using existing chain:', chainId);
+    // 已有链：优先使用 localStorage 中持久化的余额（支付后模拟扣减）
+    try {
+      const stored = localStorage.getItem(`linera_balance_${ownerAddress}`);
+      if (stored != null && stored !== '') {
+        const parsed = parseFloat(stored);
+        if (!isNaN(parsed) && parsed >= 0) {
+          balance = String(parsed);
+        }
+      }
+    } catch (_) {}
   }
   
   // 存储原始 chainDescription 和解析后的信息
   lineraState.chainId = chainId;
   lineraState.chainDescription = chainDescription;
   lineraState.balance = balance;
+  _persistBalance(ownerAddress, balance);
   
   // 尝试提取更友好的 Chain ID 显示
   let displayChainId = 'Unknown';
@@ -892,6 +927,9 @@ async function settleLineraInvoiceGraphQL(invoice) {
   const signature = await createLineraSignature(transferMessage);
   console.log('[LineraWallet] ✅ Signature created');
   
+  // 签名模式无真实链上转账，本地模拟扣减余额
+  decreaseLineraBalance(amount);
+  
   return {
     type: 'linera_transfer',
     success: true,
@@ -984,6 +1022,9 @@ async function settleLineraInvoiceWASM(invoice) {
     console.log('[LineraWallet] Creating EIP-191 signature for transfer intent...');
     const signature = await createLineraSignature(transferMessage);
     console.log('[LineraWallet] ✅ Signed transfer intent created');
+    
+    // WASM 回退到签名模式，无真实转账，本地模拟扣减
+    decreaseLineraBalance(amount);
     
     return {
       type: 'linera_transfer',

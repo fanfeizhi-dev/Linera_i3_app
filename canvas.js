@@ -436,8 +436,19 @@ async function purchaseAndPrepayCanvasWorkflow(options = {}) {
 
         console.log('✅ Payment info collected:', paymentResult);
 
-        // Linera-only：生成签名支付的 X-Payment header
-        const xPaymentHeader = `x402-linera signature=${paymentResult.signature}; message="${paymentResult.message}"; amount=${paymentResult.amount}; nonce=${invoiceData.nonce}`;
+        // Linera-only：生成 X-Payment header，格式需与服务端一致（x402-linera-transfer + sender_address/sender_chain_id/timestamp）
+        const senderChainId = paymentResult.senderChainId ?? paymentResult.sender_chain_id ?? 'unknown';
+        const senderAddress = paymentResult.owner ?? paymentResult.senderAddress ?? paymentResult.sender_address ?? '';
+        const amountStr = String(paymentResult.amount ?? invoiceData.amount_usdc ?? '0');
+        const nonceStr = String(invoiceData.nonce ?? paymentResult.nonce ?? '');
+        const timestampStr = paymentResult.timestamp ?? new Date().toISOString();
+        let xPaymentHeader = `x402-linera-transfer sender_chain_id=${senderChainId}; sender_address=${senderAddress}; amount=${amountStr}; nonce=${nonceStr}; timestamp=${timestampStr}`;
+        if (paymentResult.signature) {
+            xPaymentHeader += `; signature=${paymentResult.signature}`;
+            if (paymentResult.message) {
+                xPaymentHeader += `; message=${encodeURIComponent(paymentResult.message)}`;
+            }
+        }
 
         console.log('[Canvas][Prepay] X-Payment header:', xPaymentHeader);
 
