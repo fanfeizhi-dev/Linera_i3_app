@@ -19,6 +19,17 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- 解决浏览器端 ESM 裸导入：Linera SDK 内部会 `import "ethers"`（必须早于任何 module script） -->
+    <script type="importmap">
+    {
+      "imports": {
+        "ethers": "https://esm.sh/ethers@6.13.4",
+        "@linera/client": "https://esm.sh/@linera/client@0.15.11",
+        "@linera/metamask": "https://esm.sh/@linera/metamask@0.15.11"
+      }
+    }
+    </script>
 <!-- Safe polyfills for Solana web3.js (module-friendly, no globals pollution) -->
     <script type="module">
     // 只有缺失时才注入，避免覆盖浏览器原生实现
@@ -1220,6 +1231,22 @@
     <script>
 	(function syncRenderNetworkBadge(){
 	  try {
+	    // 0) 清除旧的 pharos 网络配置（迁移到 linera）
+	    var oldPref = localStorage.getItem('i3_preferred_network');
+	    if (oldPref) {
+	      try {
+	        var parsed = JSON.parse(oldPref);
+	        if (parsed && parsed.key && (parsed.key.toLowerCase().indexOf('pharos') !== -1 || !['linera', 'solana'].includes(parsed.key))) {
+	          localStorage.setItem('i3_preferred_network', JSON.stringify({ key: 'linera' }));
+	        }
+	      } catch(e) {
+	        localStorage.setItem('i3_preferred_network', JSON.stringify({ key: 'linera' }));
+	      }
+	    }
+	    var oldChain = localStorage.getItem('currentChainKey');
+	    if (oldChain && oldChain.toLowerCase().indexOf('pharos') !== -1) {
+	      localStorage.setItem('currentChainKey', 'linera');
+	    }
 	    // 1) 读取本地"首选网络"（你已有 getPreferredNetwork）
 	    var pref = (window.getPreferredNetwork && window.getPreferredNetwork()) || null;
 	    // 2) 快速映射（仅用于首屏，不依赖任何 SDK）
@@ -1232,7 +1259,8 @@
 	      solana:   '/svg/chains/solana.svg',
           opbnb:   '/svg/chains/opbnb.svg',
           zksync:   '/svg/chains/zksync.svg',
-          base:   '/svg/chains/base.svg',   
+          base:   '/svg/chains/base.svg',
+          linera:   '/svg/chains/linera.svg',
 	    };
 	    var NAME = {
 	      ethereum: 'Ethereum',
@@ -1244,18 +1272,19 @@
           opbnb:   'opBNB',
           zksync:   'Zksync',
           base:   'Base',
+          linera:   'Linera',
 	    };
 	    // 3) 找到徽章节点（你按钮里已有这些 id）
 	    var badge  = document.getElementById('networkBadge');
 	    var iconEl = document.getElementById('networkBadgeIcon');
 	    var textEl = document.getElementById('networkBadgeText');
 	    if (!badge || !iconEl || !textEl) return;
-	    // 4) 计算首屏 key：Solana 直接显示 solana，其它默认 ethereum
-	    var key  = (pref && pref.key)  || 'ethereum';
-	    var kind = (pref && pref.kind) || 'evm';
+	    // 4) 计算首屏 key：优先使用用户选择的网络
+	    var key  = (pref && pref.key)  || 'linera';
+	    var kind = (pref && pref.kind) || 'linera';
 	    if (kind === 'solana') key = 'solana';
 	    // 5) 同步渲染，不等 SDK
-	    iconEl.src = ICON[key] || ICON.ethereum;
+	    iconEl.src = ICON[key] || ICON['linera'];
 	    iconEl.alt = NAME[key] || 'Network';
 	    textEl.textContent = NAME[key] || 'Network';
 	    badge.style.display = 'inline-flex';
@@ -2476,7 +2505,7 @@
             }
         }
 
-        // ===== Usage accounting & PHRS deduction helpers =====
+        // ===== Usage accounting & LIN deduction helpers =====
         function estimateTokenCount(text) {
             try {
                 const t = (text || '').toString();
@@ -2538,7 +2567,7 @@
                 const amount = Number((perCall + gas).toFixed(6));
 
                 let spend = { success: false, error: 'walletManager not available' };
-                console.log('[PHRS Charge] Preparing to charge model usage', {
+                console.log('[LIN Charge] Preparing to charge model usage', {
                     model: modelName,
                     perCall,
                     gas,
@@ -2566,9 +2595,9 @@
                 });
 
                 if (spend && spend.success === false && spend.error) {
-                    console.warn('PHRS deduction failed:', spend.error);
+                    console.warn('LIN deduction failed:', spend.error);
                 } else {
-                    console.log('[PHRS Charge] Spend result:', spend);
+                    console.log('[LIN Charge] Spend result:', spend);
                     try {
                         const cur = getAvailableCredits();
                         try { firebasePersistCredits(cur); } catch (_) {}
@@ -2609,9 +2638,9 @@
              modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
              modal.innerHTML = `
                  <div style="background:#fff;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,0.2);max-width:460px;width:92%;padding:20px;border:1px solid #e5e7eb;">
-                     <h3 style="margin:0 0 8px 0;font-size:18px;">Insufficient PHRS balance</h3>
-                     <p style="margin:0 0 4px 0;color:#374151;">Needed now: <strong>${required.toFixed(6)} PHRS</strong></p>
-                     <p style="margin:0 0 16px 0;color:#374151;">Current balance: <strong>${available.toFixed(6)} PHRS</strong></p>
+                     <h3 style="margin:0 0 8px 0;font-size:18px;">Insufficient LIN balance</h3>
+                     <p style="margin:0 0 4px 0;color:#374151;">Needed now: <strong>${required.toFixed(6)} LIN</strong></p>
+                     <p style="margin:0 0 16px 0;color:#374151;">Current balance: <strong>${available.toFixed(6)} LIN</strong></p>
                      <div style="display:flex;gap:8px;justify-content:flex-end;">
                          <button id="icm-cancel" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;">Cancel</button>
                          <button id="icm-checkin" style="padding:8px 12px;border:1px solid #10b981;border-radius:8px;background:#34d399;color:#fff;cursor:pointer;">Daily Check-in (+0.01)</button>
@@ -2630,7 +2659,7 @@
                              if (!r || !r.success) {
                                  alert(r?.error || 'Check-in unavailable right now.');
                              } else {
-                                 alert(`✅ Check-in success! +${r.reward} PHRS. New balance: ${r.newBalance} PHRS`);
+                                 alert(`✅ Check-in success! +${r.reward} LIN. New balance: ${r.newBalance} LIN`);
                                  modal.remove();
                              }
                          });
@@ -2659,11 +2688,57 @@
             const { total: need } = estimateInvocationCost(modelName);
             const have = getAvailableCredits();
             if (have < need) {
-                console.warn('PHRS preflight gating: insufficient credits', { modelName, need, have });
+                console.warn('LIN preflight gating: insufficient credits', { modelName, need, have });
                 showInsufficientCreditsModal(need, have);
                 return false;
             }
             return true;
+        }
+
+        /** Chat 402 modal: waits for user to click "Continue to sign" before opening MetaMask. Returns a Promise. */
+        function showChat402Modal(invoice) {
+            if (!invoice || typeof document === 'undefined' || !document.body) return Promise.resolve();
+            const amount = invoice.amount_usdc ?? invoice.amount ?? 0;
+            const network = (invoice.network || '').toLowerCase();
+            const isLinera = network === 'linera';
+            return new Promise((resolve, reject) => {
+                const modal = document.createElement('div');
+                modal.id = 'chat-402-modal';
+                modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100002;display:flex;align-items:center;justify-content:center;padding:20px;';
+                modal.innerHTML = `
+                    <div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.25);">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                            <span style="font-size:28px;">🔐</span>
+                            <h3 style="margin:0;font-size:18px;color:#1a1a1a;">Sign / Transfer</h3>
+                        </div>
+                        ${isLinera
+                            ? `<p style="margin:0 0 12px;color:#555;font-size:13px;line-height:1.5;background:#f0f4ff;padding:12px;border-radius:8px;border-left:3px solid #6366f1;">
+                            <strong>How it works:</strong> Your MetaMask account maps to <strong>one Linera chain</strong> (one chain ID per address). Signing here authorizes this payment and, if you don’t have one yet, we create or link your Linera account for you—no gas, no switching networks.
+                            </p>`
+                            : ''}
+                        <p style="margin:0 0 12px;color:#444;font-size:15px;line-height:1.5;">
+                            ${isLinera
+                                ? 'This call requires <strong>' + (Number(amount).toFixed(6)) + ' LIN</strong>. Please <strong>sign with MetaMask</strong> (no gas, no chain switch).'
+                                : 'This call requires <strong>' + (Number(amount).toFixed(6)) + ' LIN</strong>. Complete payment to continue.'}
+                        </p>
+                        <p style="margin:0 0 20px;color:#666;font-size:13px;">
+                            After clicking the button below, MetaMask will open. Confirm the signature in the pop-up.
+                        </p>
+                        <button type="button" id="chat-402-modal-ok" style="width:100%;padding:14px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">
+                            Continue to sign
+                        </button>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                const okBtn = modal.querySelector('#chat-402-modal-ok');
+                const done = (ok) => {
+                    modal.remove();
+                    if (ok) resolve(); else reject(new Error('Payment cancelled by user'));
+                };
+                okBtn.onclick = () => done(true);
+                modal.addEventListener('click', (e) => { if (e.target === modal) done(false); });
+                setTimeout(() => { if (modal.parentNode) done(false); }, 300000);
+            });
         }
 
         function isWorkflowRunning() {
@@ -2979,7 +3054,7 @@
             if (wf.prepaid) {
                 const summary =
                     `✅ Workflow ready: **${wf.name}**\n` +
-                    (wf.prepaidAmountUsdc ? `\n💰 Prepaid: ${wf.prepaidAmountUsdc} PHRS\n` : '') +
+                    (wf.prepaidAmountUsdc ? `\n💰 Prepaid: ${wf.prepaidAmountUsdc} LIN\n` : '') +
                     (experts && experts.length ? `\n**Experts:** ${experts.join(', ')}\n` : '') +
                     (expertLines
                         ? `\n**Expert Details:**\n${expertLines}\n`
@@ -3745,14 +3820,17 @@
                 const walletAddress = (window.walletManager && window.walletManager.walletAddress) ? window.walletManager.walletAddress : undefined;
                 if (window.MCPClient && typeof window.MCPClient.invokeModel === 'function') {
                     try {
-                        const invocation = await window.MCPClient.invokeModel({
-                            prompt: q,
-                            modelName: selectedModel?.name,
-                            metadata: {
-                                source: 'chat',
-                                user_wallet: walletAddress || null
-                            }
-                        });
+                        const invocation = await window.MCPClient.invokeModel(
+                            {
+                                prompt: q,
+                                modelName: selectedModel?.name,
+                                metadata: {
+                                    source: 'chat',
+                                    user_wallet: walletAddress || null
+                                }
+                            },
+                            { onInvoice: typeof showChat402Modal === 'function' ? showChat402Modal : undefined }
+                        );
                         if (invocation && invocation.status === 'ok') {
                             const payload = invocation.result || {};
                             const assistantText = (payload.result && payload.result.output) || payload.output || '[No output]';
@@ -3769,6 +3847,13 @@
                         }
                     } catch (mcpError) {
                         const errorMsg = mcpError?.message || String(mcpError);
+                        // 后端未启动（500/502）：直接提示，不 fallback 到 legacy
+                        if (errorMsg.includes('Start the backend') || errorMsg.includes('npm run dev:full') || errorMsg.includes('node serve.js')) {
+                            appendMessageDark('assistant', '❌ ' + errorMsg);
+                            addMessageToCurrentChat('assistant', '❌ ' + errorMsg);
+                            isChatSending = false;
+                            return;
+                        }
                         // 检查是否是支付相关的错误（包括余额不足）
                         const isPaymentError = 
                             errorMsg.includes('Payment failed') || 
@@ -5096,6 +5181,7 @@
 
     <script src="contract-config.js"></script>
     <script src="pricing.js"></script>
+    <script type="module" src="/linera-wallet.js"></script>
     <script src="/mcp-client.js"></script>
     <script src="model-data.js"></script>
     <script>
@@ -5265,7 +5351,12 @@
                         try {
                             if (window.walletManager && window.walletManager.isConnected && window.walletManager.walletAddress) {
                                 const address = window.walletManager.walletAddress;
-                                if (window.ethereum && typeof window.ethereum.request === 'function') {
+                                // 检查首选网络是否是 Linera
+                                const preferred = typeof getPreferredNetwork === 'function' ? getPreferredNetwork() : null;
+                                if (preferred && preferred.kind === 'linera') {
+                                    // Linera 网络不需要读取 MetaMask 的 chainId
+                                    if (typeof window.onWalletConnected === 'function') window.onWalletConnected(address, null, 'Linera');
+                                } else if (window.ethereum && typeof window.ethereum.request === 'function') {
                                     window.ethereum.request({ method: 'eth_chainId' }).then((cid) => {
                                         if (typeof window.onWalletConnected === 'function') window.onWalletConnected(address, cid);
                                     }).catch(() => {
@@ -5714,12 +5805,32 @@
             const modal = document.getElementById('walletModal');
             modal.style.display = 'flex';
             modal.classList.add('show');
-            
+
+            // 根据当前网络更新显示文本
+            updateWalletModalNetworkText();
+
             // 延迟启用外部点击关闭，避免竞态条件
             setTimeout(() => {
                 modal.dataset.readyToClose = 'true';
             }, 100);
         };
+
+        // 根据当前网络更新登录弹窗的网络显示文本
+        function updateWalletModalNetworkText() {
+            const preferredNetwork = window.getPreferredNetwork?.() || window.I3_NETWORKS?.['linera'];
+            const walletNameEl = document.querySelector('#walletModal .wallet-name');
+            const walletDescEl = document.querySelector('#walletModal .wallet-desc');
+            if (walletNameEl && walletDescEl && preferredNetwork) {
+                if (preferredNetwork.key === 'linera') {
+                    walletNameEl.textContent = `MetaMask (${preferredNetwork.name})`;
+                    walletDescEl.textContent = preferredNetwork.description || 'Pay with Linera signature (no gas fees)';
+                } else {
+                    walletNameEl.textContent = `MetaMask (${preferredNetwork.name})`;
+                    walletDescEl.textContent = preferredNetwork.description || `Pay with LIN on ${preferredNetwork.name}`;
+                }
+            }
+        }
+        window.updateWalletModalNetworkText = updateWalletModalNetworkText;
 
         // 关闭钱包模态框 - 完全复制自benchmark.html的工作版本
         window.closeWalletModal = function() {
@@ -6003,7 +6114,13 @@
                 const info = document.getElementById('walletInfo');
                 if (info) {
                     info.style.display = 'block';
-                    info.textContent = `Wallet Connected: ${address}${chainId ? ` (Chain ID: ${chainId})` : ''}`;
+                    // 当首选网络是 Linera 时，显示 Linera 而不是 Chain ID
+                    const preferred = typeof getPreferredNetwork === 'function' ? getPreferredNetwork() : null;
+                    if (preferred && preferred.kind === 'linera') {
+                        info.textContent = `Wallet Connected: ${address} (Linera)`;
+                    } else {
+                        info.textContent = `Wallet Connected: ${address}${chainId ? ` (Chain ID: ${chainId})` : ''}`;
+                    }
                 }
 
                 // Log client-side connection time
@@ -6081,7 +6198,7 @@
             
             <div class="wallet-modal-header">
                 <h2 class="wallet-modal-title">Log in or sign up</h2>
-                <p class="wallet-modal-subtitle">Log in and connect wallet to earn PHRS credits</p>
+                <p class="wallet-modal-subtitle">Log in and connect wallet to sign Linera payments</p>
             </div>
 
             <div class="wallet-options">
@@ -6090,8 +6207,8 @@
                         <img src="svg/metamask.svg" alt="MetaMask">
                     </span>
                     <div class="wallet-info">
-                        <div class="wallet-name">MetaMask (Pharos Testnet)</div>
-                        <div class="wallet-desc">Pay with PHRS on Pharos Testnet</div>
+                        <div class="wallet-name">MetaMask</div>
+                        <div class="wallet-desc">Sign payments for Linera (no chain switching)</div>
                     </div>
                 </div>
                 <div class="wallet-footer">
@@ -6101,7 +6218,7 @@
         </div>
     </div>
 
-    <!-- 网络选择器 Modal -->
+    <!-- Network selector modal -->
     <div id="networkModal" class="network-modal">
         <div class="network-modal-content">
             <div class="network-modal-header">
@@ -6110,14 +6227,15 @@
             </div>
             <div class="wallet-options">
                 <div class="wallet-option available"
-                     data-network-key="pharos-testnet"
-                     onclick="selectNetwork('pharos-testnet')">
+                     data-network-key="linera"
+                     onclick="selectNetwork('linera')"
+                     style="display: flex !important;">
                     <span class="wallet-icon-wrap">
-                        <img src="svg/chains/pharos.jpg" alt="Pharos Testnet">
+                        <img src="svg/chains/linera.svg" alt="Linera" onerror="this.onerror=null;this.src='svg/I3 logo.svg'">
                     </span>
                     <div class="wallet-info">
-                        <div class="wallet-name">Pharos Testnet</div>
-                        <div class="wallet-description">Pay with PHRS on Pharos Testnet</div>
+                        <div class="wallet-name">Linera</div>
+                        <div class="wallet-description">Pay with Linera signature (no gas fees)</div>
                     </div>
                     <span class="selected-indicator" style="display: none;">✓</span>
                 </div>
@@ -6125,7 +6243,7 @@
         </div>
     </div>
 
-    <!-- 余额不足提示 Modal -->
+    <!-- Insufficient balance modal -->
     <div id="insufficientBalanceModal" class="network-modal">
         <div class="network-modal-content">
             <div class="network-modal-header">
@@ -6134,13 +6252,13 @@
             </div>
             <div style="padding: 16px 0;">
                 <p style="font-size: 14px; color: #374151; line-height: 1.6; margin-bottom: 16px;" id="insufficientBalanceMessage">
-                    Your wallet does not have sufficient PHRS balance to complete this transaction.
+                    Your wallet does not have sufficient LIN balance to complete this transaction.
                 </p>
                 <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                     <p style="font-size: 13px; color: #92400e; margin: 0; line-height: 1.5;">
                         <strong>What you need to do:</strong><br>
-                        1. Add PHRS to your wallet on Pharos Testnet<br>
-                        2. Close this dialog after adding PHRS<br>
+                        1. Ensure your account has sufficient credits<br>
+                        2. Close this dialog after topping up<br>
                         3. Try the operation again
                     </p>
                 </div>
@@ -6161,14 +6279,14 @@
         </div>
     </div>
 
-    <!-- 链上签到 Modal -->
+    <!-- On-chain check-in modal -->
     <div id="onChainCheckInModal" class="wallet-modal" style="display: none;">
         <div class="wallet-modal-content" style="max-width: 520px;">
             <button class="wallet-close-btn" onclick="closeOnChainCheckInModal()">✕</button>
             
             <div class="wallet-modal-header">
                 <h2 class="wallet-modal-title">✅ Check-In on Chain</h2>
-                <p class="wallet-modal-subtitle">Complete your daily on-chain check-in to earn PHRS credits</p>
+                <p class="wallet-modal-subtitle">Complete your daily on-chain check-in to earn LIN credits</p>
             </div>
 
             <div id="userStatusSection" style="margin: 20px 0; padding: 16px; background: #f0fdf4; border-radius: 12px;">
@@ -6196,7 +6314,7 @@
             </div>
 
             <div style="margin: 20px 0; padding: 12px; background: #fef3c7; border-radius: 8px; border: 1px solid #fcd34d;">
-                <p style="font-size: 13px; color: #92400e; margin: 0;">⛽ Gas fee: ≈0.00025 PHRS per call</p>
+                <p style="font-size: 13px; color: #92400e; margin: 0;">⛽ Gas fee: ≈0.00025 LIN per call</p>
             </div>
 
             <button id="executeCheckInBtn" onclick="executeOnChainCheckIn()" 

@@ -1,7 +1,7 @@
 // Workflow Page JavaScript
 
 const WORKFLOW_PRICING_DEFAULTS = (window.PricingUtils && window.PricingUtils.constants) || {
-    currency: 'PHRS',
+    currency: 'LIN',
     pricePerApiCallUsdc: 0.0008,
     gasEstimatePerCallUsdc: 0.00025,
     sharePurchaseMinUsdc: 1,
@@ -16,7 +16,7 @@ function workflowFormatUsdc(value, options = {}) {
     const num = Number(value || 0);
     const min = options.minimumFractionDigits ?? 4;
     const max = options.maximumFractionDigits ?? 6;
-    return `${num.toFixed(Math.min(Math.max(min, 0), max))} PHRS`;
+    return `${num.toFixed(Math.min(Math.max(min, 0), max))} LIN`;
 }
 
 function getWorkflowModelPricing(modelName) {
@@ -232,7 +232,7 @@ function enrichWorkflowPricing(workflowList) {
 // Current user's assets (from myAssets localStorage)
 let userAssets = {};
 
-// Helper: get current wallet credits (PHRS balance)
+// Helper: get current wallet credits (LIN balance)
 function getWalletCredits() {
     try {
         if (window.walletManager && typeof window.walletManager.getUserInfo === 'function') {
@@ -278,12 +278,12 @@ function checkWalletConnection() {
     return {
         connected: userInfo.isConnected,
         address: userInfo.address,
-        tokens: userInfo.credits, // 统一使用 PHRS 余额
+        tokens: userInfo.credits, // 统一使用 LIN 余额
         error: userInfo.isConnected ? null : 'Please connect your wallet first'
     };
 }
 
-// 验证用户是否有足够的 PHRS 余额 - 复制自mycart.js
+// 验证用户是否有足够的 LIN 余额 - 复制自mycart.js
 function validatePayment(totalCost) {
     const walletStatus = checkWalletConnection();
     
@@ -299,7 +299,7 @@ function validatePayment(totalCost) {
     if (walletStatus.tokens < totalCost) {
         return {
             valid: false,
-            error: `Insufficient PHRS balance. You need ${totalCost} PHRS but only have ${walletStatus.tokens} PHRS.`,
+            error: `Insufficient LIN balance. You need ${totalCost} LIN but only have ${walletStatus.tokens} LIN.`,
             required: totalCost,
             available: walletStatus.tokens
         };
@@ -544,7 +544,7 @@ async function placeOrder() {
             console.log('[Workflow] User cancelled workflow execution');
             return;
         } else if (errorMsg.includes('insufficient') || errorMsg.includes('balance')) {
-            alert(`⚠️ Insufficient Balance!\n\n${errorMsg}\n\nPlease add PHRS to your wallet and try again.`);
+            alert(`⚠️ Insufficient Balance!\n\n${errorMsg}\n\nPlease add LIN to your wallet and try again.`);
         } else {
             alert(`❌ Workflow Execution Failed!\n\n${errorMsg}\n\nPlease try again.`);
         }
@@ -566,7 +566,7 @@ async function placeOrder() {
     updateUserAssetsInStorage();
     
     // 8. 显示成功消息
-    alert(`🎉 Workflow Purchase Successful!\n\n💳 Total Cost: ${totalCost.toFixed(6)} PHRS\n📊 Workflow: ${workflow.name}\n🎯 Models: ${workflow.modelCount}\n\n✅ Tokens have been added to your account!`);
+    alert(`🎉 Workflow Purchase Successful!\n\n💳 Total Cost: ${totalCost.toFixed(6)} LIN\n📊 Workflow: ${workflow.name}\n🎯 Models: ${workflow.modelCount}\n\n✅ Tokens have been added to your account!`);
     
     // 9. Hide modal
     hideTokenPurchaseModal();
@@ -589,8 +589,9 @@ async function placeOrder() {
         workflow.lastPaymentTx = lastPayment.tx;
         
         // 构造 explorer URL
-        const explorerBase = 'https://pharos-testnet.socialscan.io/tx';
-        workflow.lastPaymentExplorer = `${explorerBase}/${lastPayment.tx}`;
+        // Linera 使用签名支付，没有 explorer URL
+        const explorerBase = null;
+        workflow.lastPaymentExplorer = explorerBase ? `${explorerBase}/${lastPayment.tx}` : 'signature-based payment';
         workflow.lastPaymentMemo = lastPayment.invoice?.request_id || null;
         
         // 显示交易链接
@@ -820,7 +821,7 @@ function tryWorkflow(workflowId) {
     // 显示选择对话框
     const choice = confirm(
         `Choose payment method for "${workflow.name}":\n\n` +
-        `OK = Prepay once (${workflow.totalPrice.toFixed(4)} PHRS total, 1 transaction)\n` +
+        `OK = Prepay once (${workflow.totalPrice.toFixed(4)} LIN total, 1 transaction)\n` +
         `Cancel = Pay per node (${workflow.models.length} separate transactions)`
     );
 
@@ -909,7 +910,7 @@ function showWorkflowExplorerToast(signature, amount, explorerUrlOverride) {
         toast.innerHTML = `
             <button class="workflow-payment-toast__close" aria-label="Dismiss">×</button>
             <h4>Workflow Payment Settled</h4>
-            <p>Amount: <strong>${Number(amount).toFixed(6)} PHRS</strong></p>
+            <p>Amount: <strong>${Number(amount).toFixed(6)} LIN</strong></p>
             <a href="${explorerUrl}" target="_blank" rel="noopener noreferrer">View on Solana Explorer →</a>
         `;
         const close = toast.querySelector('.workflow-payment-toast__close');
@@ -953,7 +954,7 @@ function offerCanvasNavigation(workflow) {
                         ${shortTx}
                     </a>
                     <p style="margin: 8px 0 0; font-size: 12px; color: #64748b;">
-                        ${workflow.prepaidAmountUsdc ? `Amount: ${workflow.prepaidAmountUsdc.toFixed(6)} PHRS` : ''}
+                        ${workflow.prepaidAmountUsdc ? `Amount: ${workflow.prepaidAmountUsdc.toFixed(6)} LIN` : ''}
                     </p>
                 </div>
             `;
@@ -1026,8 +1027,24 @@ async function purchaseAndPrepayWorkflow(workflow) {
 
         console.log('✅ Payment successful:', paymentResult);
 
-        // 步骤 3: 提交支付凭证
-        const paymentHeader = `x402 ${invoiceData.network}; tx=${paymentResult.hash}; amount=${invoiceData.amount_usdc}; nonce=${invoiceData.nonce}`;
+        // Step 3: Submit payment proof (server expects x402-linera-transfer with sender_chain_id, sender_address, timestamp)
+        let paymentHeader;
+        if (paymentResult.type === 'linera_transfer' && (paymentResult.senderChainId != null || paymentResult.senderAddress != null)) {
+            const senderChainId = String(paymentResult.senderChainId ?? 'unknown');
+            const senderAddress = String(paymentResult.senderAddress ?? '');
+            const amount = String(paymentResult.amount ?? paymentResult.amount_usdc ?? invoiceData.amount_usdc ?? '0');
+            const nonce = String(paymentResult.nonce ?? invoiceData.nonce ?? '');
+            const timestamp = String(paymentResult.timestamp ?? new Date().toISOString());
+            paymentHeader = `x402-linera-transfer sender_chain_id=${senderChainId}; sender_address=${senderAddress}; amount=${amount}; nonce=${nonce}; timestamp=${timestamp}`;
+            if (paymentResult.signature) {
+                paymentHeader += `; signature=${paymentResult.signature}`;
+                if (paymentResult.message) {
+                    paymentHeader += `; message=${encodeURIComponent(paymentResult.message)}`;
+                }
+            }
+        } else {
+            paymentHeader = `x402-linera-transfer sender_chain_id=unknown; sender_address=${paymentResult.owner || ''}; amount=${paymentResult.amount}; nonce=${paymentResult.nonce}; timestamp=${new Date().toISOString()}; signature=${paymentResult.signature}; message=${encodeURIComponent(paymentResult.message || '')}`;
+        }
 
         const confirmResponse = await fetch('/mcp/workflow.prepay', {
             method: 'POST',
@@ -1084,7 +1101,7 @@ function show402InvoiceModal(invoice, workflow) {
             <tr>
                 <td style="padding:8px;border-bottom:1px solid #eee;">${node.name}</td>
                 <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${node.calls}</td>
-                <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${node.total_cost.toFixed(6)} PHRS</td>
+                <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${node.total_cost.toFixed(6)} LIN</td>
             </tr>
         `).join('');
 
@@ -1110,7 +1127,7 @@ function show402InvoiceModal(invoice, workflow) {
                     </div>
                     <div style="display:flex;justify-content:space-between;padding-top:12px;border-top:2px solid #dee2e6;">
                         <span style="color:#666;font-size:18px;">Total Amount:</span>
-                        <strong style="color:#2ecc71;font-size:20px;">${invoice.amount_usdc.toFixed(6)} PHRS</strong>
+                        <strong style="color:#2ecc71;font-size:20px;">${invoice.amount_usdc.toFixed(6)} LIN</strong>
                     </div>
                 </div>
 
@@ -1172,7 +1189,7 @@ function show402InvoiceModal(invoice, workflow) {
                         Cancel
                     </button>
                     <button id="pay-btn" style="flex:2;padding:14px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;border-radius:8px;cursor:pointer;font-size:16px;font-weight:500;">
-                        💳 Pay ${invoice.amount_usdc.toFixed(6)} PHRS
+                        💳 Pay ${invoice.amount_usdc.toFixed(6)} LIN
                     </button>
                 </div>
             </div>
@@ -1195,36 +1212,44 @@ function show402InvoiceModal(invoice, workflow) {
                 payBtn.disabled = true;
                 payBtn.style.opacity = '0.6';
                 payBtn.style.cursor = 'not-allowed';
-                payBtn.innerHTML = '⏳ Processing...';
+                payBtn.innerHTML = '⏳ Check MetaMask...';
 
-                // 发起支付
-                const tx = await sendPharosPayment(
-                    invoice.recipient,
-                    invoice.amount_usdc,
-                    invoice.decimals || 18
-                );
+                // Linera: use LineraWallet.settleInvoice so server accepts x402-linera-transfer format
+                let paymentResult;
+                if (window.LineraWallet && typeof window.LineraWallet.settleInvoice === 'function') {
+                    paymentResult = await window.LineraWallet.settleInvoice(invoice);
+                    if (!paymentResult || !paymentResult.success) {
+                        throw new Error(paymentResult?.error || 'Linera wallet settlement failed');
+                    }
+                } else {
+                    paymentResult = await sendLineraPayment(
+                        invoice.amount_usdc,
+                        invoice.nonce,
+                        invoice.recipient
+                    );
+                }
+                console.log('🔐 Linera-style signature:', paymentResult.signature ? paymentResult.signature.slice(0, 20) + '...' : 'N/A');
 
-                console.log('💰 Payment tx:', tx.hash);
-
-                // 生成 explorer URL
-                const explorerUrl = `${invoice.explorer_base_url}/${tx.hash}`;
-
-                // 显示支付成功状态
+                // 显示签名成功状态
                 paymentStatus.style.display = 'block';
-                modal.querySelector('#tx-hash').textContent = tx.hash;
-                modal.querySelector('#explorer-link').href = explorerUrl;
+
+                // 隐藏交易哈希与 explorer（Linera-only 无链上交易）
+                const txHashEl = modal.querySelector('#tx-hash');
+                const explorerLinkEl = modal.querySelector('#explorer-link');
+                if (txHashEl?.parentElement) txHashEl.parentElement.style.display = 'none';
+                if (explorerLinkEl) explorerLinkEl.style.display = 'none';
 
                 // 更新按钮
-                payBtn.innerHTML = '✅ Payment Confirmed';
+                payBtn.innerHTML = '✅ Signature Ready';
                 payBtn.style.background = '#28a745';
-                
+
                 // 隐藏取消按钮
                 cancelBtn.style.display = 'none';
 
-                // 2秒后自动关闭并返回结果
+                // 返回支付结果
                 setTimeout(() => {
                     modal.remove();
-                    resolve(tx);
+                    resolve(paymentResult);
                 }, 2000);
 
             } catch (error) {
@@ -1232,7 +1257,7 @@ function show402InvoiceModal(invoice, workflow) {
                 payBtn.disabled = false;
                 payBtn.style.opacity = '1';
                 payBtn.style.cursor = 'pointer';
-                payBtn.innerHTML = `💳 Pay ${invoice.amount_usdc.toFixed(6)} PHRS`;
+                payBtn.innerHTML = `💳 Pay ${invoice.amount_usdc.toFixed(6)} LIN`;
                 alert(`Payment failed: ${error.message}`);
             }
         };
@@ -1296,20 +1321,42 @@ async function executePrepaidWorkflow(workflow) {
     alert(`✅ Workflow completed! Executed ${results.length} nodes.`);
 }
 
-async function sendPharosPayment(recipient, amountUsdc, decimals) {
+// ========== Linera 风格签名支付 ==========
+/**
+ * 使用 Linera/EIP-191 签名方式支付
+ * 只弹出签名，不进行链上交易
+ */
+async function sendLineraPayment(amount, nonce, recipient) {
     if (!window.ethereum) throw new Error('MetaMask not installed');
-    
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-    const amountWei = ethers.utils.parseUnits(amountUsdc.toString(), decimals);
 
-    const tx = await signer.sendTransaction({
-        to: recipient,
-        value: amountWei
+    // 1. 获取连接的钱包地址
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const owner = accounts[0].toLowerCase();
+
+    // 2. 构建签名消息 (EIP-191 格式)
+    // 消息格式：I3 Payment: {amount} LIN, nonce: {nonce}, to: {recipient}
+    const message = `I3 Payment: ${amount} LIN, nonce: ${nonce}, to: ${recipient}`;
+
+    // 3. 使用 personal_sign 弹出 MetaMask 签名
+    const msgHex = '0x' + new TextEncoder().encode(message)
+        .reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+
+    const signature = await window.ethereum.request({
+        method: 'personal_sign',
+        params: [msgHex, owner]
     });
 
-    await tx.wait();
-    return tx;
+    if (!signature) throw new Error('Signature was empty');
+
+    // 4. 返回签名信息
+    return {
+        signature,
+        owner,
+        message,
+        amount,
+        nonce,
+        recipient
+    };
 }
 
 async function getConnectedWallet() {

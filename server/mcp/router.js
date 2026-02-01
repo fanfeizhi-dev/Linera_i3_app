@@ -11,9 +11,9 @@ const {
   createInvoice,
   build402Body,
   parsePaymentHeader,
-  isExpired
+  isExpired,
+  verifyLineraSignature
 } = require('./payments');
-const { verifyPharosTransfer } = require('./pharos-verifier');
 const { getNetworkConfigFromRequest, MCP_CONFIG } = require('./config');
 
 const router = express.Router();
@@ -178,16 +178,22 @@ async function invokeChatCompletion({ prompt, modelId, metadata = {} }) {
 }
 
 router.post('/models.invoke', async (req, res) => {
+  let networkConfig;
   try {
     const userId = resolveUserId(req);
-    const networkConfig = getNetworkConfigFromRequest(req);
+    try {
+      networkConfig = getNetworkConfigFromRequest(req);
+    } catch (configErr) {
+      console.warn('[mcp/models.invoke] getNetworkConfigFromRequest failed', configErr);
+      networkConfig = MCP_CONFIG.payments;
+    }
     
     // 记录网络配置信息
     console.log('[mcp/models.invoke] Network config:', {
       network: networkConfig.network,
       rpcUrl: networkConfig.rpcUrl,
       explorerBaseUrl: networkConfig.explorerBaseUrl,
-      requestHeader: req.headers['x-pharos-network'],
+      requestHeader: req.headers['x-linera-network'],
       bodyNetwork: req.body?.network
     });
     
@@ -299,7 +305,190 @@ router.post('/models.invoke', async (req, res) => {
 
       return res.json(result);
     }
-    
+
+    // 检查是否使用 Linera 真实转账（方案 C：支持签名转账）
+    if (paymentProof.isLineraTransfer) {
+      console.log('[mcp/models.invoke] Using Linera transfer, type:', paymentProof.transferType || 'unknown');
+
+      const transferData = {
+        senderChainId: paymentProof.senderChainId,
+        senderAddress: paymentProof.senderAddress,
+        amount: paymentProof.amount,
+        nonce: paymentProof.nonce,
+        timestamp: paymentProof.timestamp,
+        signature: paymentProof.signature,
+        message: paymentProof.message,
+        transferType: paymentProof.transferType
+      };
+
+      console.log('[mcp/models.invoke] Linera transfer data:', transferData);
+
+      if (!transferData.senderAddress || !transferData.senderChainId) {
+        return res.status(402).json({
+          status: 'transfer_invalid',
+          code: 'missing_sender_info',
+          message: 'Missing sender chain ID or address'
+        });
+      }
+
+      if (transferData.nonce !== entry.nonce) {
+        return res.status(409).json({
+          status: 'nonce_mismatch',
+          code: 'nonce_mismatch',
+          message: 'Nonce mismatch. Request a fresh 402.'
+        });
+      }
+
+      if (isExpired(entry)) {
+        return handleExpired(entry, res, {
+          auto_router: entry.meta?.auto_router
+        }, networkConfig);
+      }
+
+      if (walletAddress) {
+        const expected = String(walletAddress).toLowerCase();
+        const actual = String(transferData.senderAddress).toLowerCase();
+        if (expected !== actual) {
+          return res.status(402).json({
+            status: 'transfer_invalid',
+            code: 'wrong_sender',
+            message: 'Transfer sender does not match wallet_address'
+          });
+        }
+      }
+
+      if (transferData.amount && Math.abs(transferData.amount - entry.amount_usdc) > 0.0001) {
+        return res.status(402).json({
+          status: 'transfer_invalid',
+          code: 'amount_mismatch',
+          message: 'Transfer amount does not match invoice'
+        });
+      }
+
+      // 方案 C：签名转账时验证 EIP-191 签名
+      if (transferData.transferType === 'signed' && transferData.signature) {
+        console.log('[mcp/models.invoke] Verifying EIP-191 signature (Plan C)...');
+        if (!transferData.message) {
+          return res.status(402).json({
+            status: 'transfer_invalid',
+            code: 'missing_message',
+            message: 'Signed transfer missing original message'
+          });
+        }
+        const isValidSignature = await verifyLineraSignature(
+          transferData.message,
+          transferData.signature,
+          transferData.senderAddress
+        );
+        if (!isValidSignature) {
+          return res.status(402).json({
+            status: 'transfer_invalid',
+            code: 'invalid_signature',
+            message: 'Signature verification failed'
+          });
+        }
+        console.log('[mcp/models.invoke] ✅ Signature verified');
+        try {
+          const messageObj = JSON.parse(transferData.message);
+          if (messageObj.nonce !== entry.nonce) {
+            return res.status(409).json({
+              status: 'transfer_invalid',
+              code: 'message_nonce_mismatch',
+              message: 'Nonce in signed message does not match invoice'
+            });
+          }
+          if (messageObj.amount !== entry.amount_usdc) {
+            return res.status(402).json({
+              status: 'transfer_invalid',
+              code: 'message_amount_mismatch',
+              message: 'Amount in signed message does not match invoice'
+            });
+          }
+          const expectedRecipient = (networkConfig.recipient || MCP_CONFIG.payments.recipient || '').toLowerCase();
+          if (messageObj.recipient && expectedRecipient && messageObj.recipient.toLowerCase() !== expectedRecipient) {
+            return res.status(402).json({
+              status: 'transfer_invalid',
+              code: 'message_recipient_mismatch',
+              message: 'Recipient in signed message does not match expected recipient'
+            });
+          }
+        } catch (parseError) {
+          console.warn('[mcp/models.invoke] Failed to parse signed message:', parseError.message);
+        }
+      }
+
+      const paidAt = new Date().toISOString();
+      const baseMeta = {
+        ...entry.meta,
+        wallet_address: transferData.senderAddress,
+        verification: {
+          ok: true,
+          method: 'linera_transfer',
+          transferType: transferData.transferType || 'unknown',
+          senderChainId: transferData.senderChainId,
+          senderAddress: transferData.senderAddress,
+          amount: transferData.amount,
+          network: 'Linera Testnet Conway',
+          signatureVerified: !!transferData.signature
+        }
+      };
+
+      store.markEntryStatus(entry.request_id, 'paid', {
+        tx_signature: transferData.transferType === 'signed'
+          ? `LINERA_SIGNED:${String(transferData.senderChainId).slice(0, 8)}...`
+          : `LINERA_TX:${String(transferData.senderChainId).slice(0, 8)}...`,
+        paid_at: paidAt,
+        meta: baseMeta
+      });
+
+      const storedPrompt = entry.meta?.prompt || sanitizePrompt(req.body?.prompt);
+      const inference = await invokeChatCompletion({
+        prompt: storedPrompt,
+        modelId: entry.model_or_node,
+        metadata: entry.meta || {}
+      });
+
+      const result = {
+        output:
+          inference.output ||
+          (inference.error
+            ? `⚠️ Model invocation failed: ${inference.error}`
+            : `No output returned by ${entry.model_or_node}.`),
+        usage: inference.usage || {
+          calls: 1,
+          amount_usdc: entry.amount_usdc
+        },
+        model: inference.model || entry.model_or_node,
+        raw: inference.raw || null,
+        error: inference.error || null,
+        warning: inference.warning || null
+      };
+
+      store.markEntryStatus(entry.request_id, 'completed', {
+        completed_at: paidAt,
+        meta: {
+          ...baseMeta,
+          prompt: storedPrompt,
+          result
+        }
+      });
+
+      return res.json({
+        status: 'ok',
+        request_id: entry.request_id,
+        model: entry.model_or_node,
+        payment: {
+          method: 'linera_transfer',
+          transferType: transferData.transferType || 'unknown',
+          amount_usdc: entry.amount_usdc,
+          network: 'Linera Testnet Conway',
+          senderChainId: transferData.senderChainId,
+          signatureVerified: !!transferData.signature
+        },
+        ...result
+      });
+    }
+
     // 原有的 x402 支付验证逻辑
     if (entry.tx_signature && entry.tx_signature !== paymentProof.tx) {
       return handleDuplicate(entry, paymentProof, res);
@@ -420,7 +609,8 @@ router.post('/models.invoke', async (req, res) => {
     });
   } catch (err) {
     console.error('[mcp/models.invoke]', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    const message = err && err.message ? String(err.message) : 'Internal server error';
+    return res.status(500).json({ error: message, code: 'models_invoke_error' });
   }
 });
 
@@ -563,6 +753,100 @@ router.post('/workflow.prepay', async (req, res) => {
         tx_signature: entry.tx_signature,
         settled_at: entry.completed_at,
         message: 'Workflow already prepaid. Use the session ID to execute nodes.'
+      });
+    }
+
+    // 检查是否使用 Linera 真实转账（方案A）
+    if (paymentProof.isLineraTransfer) {
+      console.log('[mcp/workflow.prepay] Using Linera real transfer');
+
+      // 基本校验 + nonce 绑定（防重放）
+      const transferData = {
+        senderChainId: paymentProof.senderChainId,
+        senderAddress: paymentProof.senderAddress,
+        amount: paymentProof.amount,
+        nonce: paymentProof.nonce,
+        timestamp: paymentProof.timestamp
+      };
+
+      if (!transferData.senderAddress || !transferData.senderChainId) {
+        return res.status(402).json({
+          status: 'transfer_invalid',
+          code: 'missing_sender_info',
+          message: 'Missing sender chain ID or address'
+        });
+      }
+      if (transferData.nonce !== entry.nonce) {
+        return res.status(409).json({
+          status: 'nonce_mismatch',
+          code: 'nonce_mismatch',
+          message: 'Nonce mismatch for workflow prepayment.'
+        });
+      }
+      if (isExpired(entry)) {
+        return handleExpired(entry, res, { workflow_name: workflowName }, networkConfig);
+      }
+      if (walletAddress) {
+        const expected = String(walletAddress).toLowerCase();
+        const actual = String(transferData.senderAddress).toLowerCase();
+        if (expected !== actual) {
+          return res.status(402).json({
+            status: 'transfer_invalid',
+            code: 'wrong_sender',
+            message: 'Transfer sender does not match wallet_address'
+          });
+        }
+      }
+      if (transferData.amount && Math.abs(transferData.amount - entry.amount_usdc) > 0.0001) {
+        return res.status(402).json({
+          status: 'transfer_invalid',
+          code: 'amount_mismatch',
+          message: 'Transfer amount does not match invoice'
+        });
+      }
+
+      const timestamp = new Date().toISOString();
+      const workflowSessionId = randomUUID();
+      const updatedMeta = {
+        ...entry.meta,
+        wallet_address: String(transferData.senderAddress).toLowerCase(),
+        verification: {
+          ok: true,
+          method: 'linera_transfer',
+          senderChainId: transferData.senderChainId,
+          senderAddress: String(transferData.senderAddress).toLowerCase(),
+          amount: transferData.amount,
+          network: networkConfig.network
+        },
+        workflow_session_id: workflowSessionId,
+        prepaid_at: timestamp
+      };
+
+      store.markEntryStatus(entry.request_id, 'paid', {
+        tx_signature: `LINERA_TX:${String(transferData.senderChainId).slice(0, 8)}...`,
+        paid_at: timestamp,
+        meta: updatedMeta
+      });
+      store.markEntryStatus(entry.request_id, 'completed', {
+        completed_at: timestamp,
+        meta: updatedMeta
+      });
+
+      return res.json({
+        status: 'ok',
+        request_id: entry.request_id,
+        workflow_session_id: workflowSessionId,
+        workflow_name: workflowName,
+        amount_usdc: entry.amount_usdc,
+        tx_signature: `LINERA_TX:${String(transferData.senderChainId).slice(0, 8)}...`,
+        settled_at: timestamp,
+        payer_wallet: String(transferData.senderAddress).toLowerCase(),
+        nodes: estimated.map(n => ({
+          name: n.name,
+          calls: n.calls,
+          total_cost: n.totalCost
+        })),
+        message: 'Workflow prepaid successfully with Linera transfer.'
       });
     }
 
@@ -855,6 +1139,123 @@ router.post('/workflow/execute', async (req, res) => {
       workflowSessions.set(session.sessionId, session);
     }
 
+    // 检查是否使用 Linera 真实转账（方案A）
+    if (paymentProof.isLineraTransfer) {
+      console.log('[mcp/workflow.execute] Using Linera real transfer');
+
+      const transferData = {
+        senderChainId: paymentProof.senderChainId,
+        senderAddress: paymentProof.senderAddress,
+        amount: paymentProof.amount,
+        nonce: paymentProof.nonce,
+        timestamp: paymentProof.timestamp
+      };
+
+      if (!transferData.senderAddress || !transferData.senderChainId) {
+        return res.status(402).json({
+          status: 'transfer_invalid',
+          code: 'missing_sender_info',
+          message: 'Missing sender chain ID or address'
+        });
+      }
+      if (transferData.nonce !== entry.nonce) {
+        return res.status(409).json({
+          status: 'nonce_mismatch',
+          code: 'nonce_mismatch',
+          message: 'Nonce mismatch for workflow invoice.'
+        });
+      }
+      if (isExpired(entry)) {
+        return handleExpired(entry, res, { workflow: session.workflow }, networkConfig);
+      }
+      if (walletAddress) {
+        const expected = String(walletAddress).toLowerCase();
+        const actual = String(transferData.senderAddress).toLowerCase();
+        if (expected !== actual) {
+          return res.status(402).json({
+            status: 'transfer_invalid',
+            code: 'wrong_sender',
+            message: 'Transfer sender does not match wallet_address'
+          });
+        }
+      }
+      if (transferData.amount && Math.abs(transferData.amount - entry.amount_usdc) > 0.0001) {
+        return res.status(402).json({
+          status: 'transfer_invalid',
+          code: 'amount_mismatch',
+          message: 'Transfer amount does not match invoice'
+        });
+      }
+
+      const paidAt = new Date().toISOString();
+      const baseMeta = {
+        ...entry.meta,
+        wallet_address: String(transferData.senderAddress).toLowerCase(),
+        verification: {
+          ok: true,
+          method: 'linera_transfer',
+          senderChainId: transferData.senderChainId,
+          senderAddress: String(transferData.senderAddress).toLowerCase(),
+          amount: transferData.amount,
+          network: networkConfig.network
+        }
+      };
+
+      store.markEntryStatus(entry.request_id, 'paid', {
+        tx_signature: `LINERA_TX:${String(transferData.senderChainId).slice(0, 8)}...`,
+        paid_at: paidAt,
+        meta: baseMeta
+      });
+
+      const nodeResult = {
+        node_index: session.currentIndex,
+        node_name: currentNode.name,
+        tx_signature: `LINERA_TX:${String(transferData.senderChainId).slice(0, 8)}...`,
+        amount_usdc: entry.amount_usdc,
+        explorer: null,
+        payer_wallet: String(transferData.senderAddress).toLowerCase()
+      };
+
+      store.markEntryStatus(entry.request_id, 'completed', {
+        completed_at: paidAt,
+        meta: {
+          ...baseMeta,
+          node_result: nodeResult
+        }
+      });
+
+      session.currentIndex += 1;
+
+      if (session.currentIndex < session.nodes.length) {
+        const { invoice, node } = issueWorkflowInvoice(session);
+        res.set('X-Workflow-Session', session.sessionId);
+        return respondWith402(res, invoice, {
+          workflow: session.workflow,
+          previous_node: nodeResult,
+          node: {
+            index: session.currentIndex,
+            name: node.name,
+            calls: node.calls,
+            total_cost: node.totalCost
+          },
+          progress: {
+            completed: session.currentIndex,
+            total_nodes: session.nodes.length,
+            status: '402→Pay→200'
+          }
+        }, networkConfig);
+      }
+
+      workflowSessions.delete(session.sessionId);
+      res.set('X-Workflow-Session', session.sessionId);
+      return res.json({
+        status: 'ok',
+        workflow: session.workflow,
+        settled_at: paidAt,
+        final_node: nodeResult
+      });
+    }
+
     if (entry.tx_signature && entry.tx_signature !== paymentProof.tx) {
       return handleDuplicate(entry, paymentProof, res);
     }
@@ -993,8 +1394,8 @@ router.post('/share/buy', async (req, res) => {
       return res.status(400).json({
         status: 'invalid_amount',
         message: isTokenPurchase 
-          ? `Token purchase must be between ${minAmount} and ${maxAmount} PHRS.`
-          : `Share purchase must be between ${minAmount} and ${maxAmount} PHRS.`
+          ? `Token purchase must be between ${minAmount} and ${maxAmount} LIN.`
+          : `Share purchase must be between ${minAmount} and ${maxAmount} LIN.`
       });
     }
 
@@ -1023,6 +1424,7 @@ router.post('/share/buy', async (req, res) => {
       }, networkConfig);
     }
 
+    // 进入支付校验分支：必须有 requestId 才能绑定 invoice
     if (!requestId) {
       return res.status(400).json({
         status: 'missing_request_id',
@@ -1035,6 +1437,102 @@ router.post('/share/buy', async (req, res) => {
       return res.status(404).json({
         status: 'unknown_request',
         message: 'Share purchase invoice not found.'
+      });
+    }
+
+    if (entry.status === 'completed') {
+      return res.json({
+        status: 'ok',
+        request_id: entry.request_id,
+        share_id: shareId,
+        amount_usdc: entry.amount_usdc,
+        tx_signature: entry.tx_signature,
+        settled_at: entry.completed_at
+      });
+    }
+
+    // 方案A：Linera 真实转账
+    if (paymentProof.isLineraTransfer) {
+      console.log('[mcp/share.buy] Using Linera real transfer');
+
+      const transferData = {
+        senderChainId: paymentProof.senderChainId,
+        senderAddress: paymentProof.senderAddress,
+        amount: paymentProof.amount,
+        nonce: paymentProof.nonce,
+        timestamp: paymentProof.timestamp
+      };
+
+      if (!transferData.senderAddress || !transferData.senderChainId) {
+        return res.status(402).json({
+          status: 'transfer_invalid',
+          code: 'missing_sender_info',
+          message: 'Missing sender chain ID or address'
+        });
+      }
+      if (transferData.nonce !== entry.nonce) {
+        return res.status(409).json({
+          status: 'nonce_mismatch',
+          code: 'nonce_mismatch',
+          message: 'Nonce mismatch for share purchase.'
+        });
+      }
+      if (isExpired(entry)) {
+        return handleExpired(entry, res, { share_id: shareId }, networkConfig);
+      }
+      if (walletAddress) {
+        const expected = String(walletAddress).toLowerCase();
+        const actual = String(transferData.senderAddress).toLowerCase();
+        if (expected !== actual) {
+          return res.status(402).json({
+            status: 'transfer_invalid',
+            code: 'wrong_sender',
+            message: 'Transfer sender does not match wallet_address'
+          });
+        }
+      }
+      if (transferData.amount && Math.abs(transferData.amount - entry.amount_usdc) > 0.0001) {
+        return res.status(402).json({
+          status: 'transfer_invalid',
+          code: 'amount_mismatch',
+          message: 'Transfer amount does not match invoice'
+        });
+      }
+
+      const timestamp = new Date().toISOString();
+      const baseMeta = {
+        ...entry.meta,
+        wallet_address: String(transferData.senderAddress).toLowerCase(),
+        verification: {
+          ok: true,
+          method: 'linera_transfer',
+          senderChainId: transferData.senderChainId,
+          senderAddress: String(transferData.senderAddress).toLowerCase(),
+          amount: transferData.amount,
+          network: networkConfig.network
+        },
+        share_id: shareId
+      };
+
+      store.markEntryStatus(entry.request_id, 'paid', {
+        tx_signature: `LINERA_TX:${String(transferData.senderChainId).slice(0, 8)}...`,
+        paid_at: timestamp,
+        meta: baseMeta
+      });
+      store.markEntryStatus(entry.request_id, 'completed', {
+        completed_at: timestamp,
+        meta: baseMeta
+      });
+
+      return res.json({
+        status: 'ok',
+        request_id: entry.request_id,
+        share_id: shareId,
+        amount_usdc: entry.amount_usdc,
+        tx_signature: `LINERA_TX:${String(transferData.senderChainId).slice(0, 8)}...`,
+        explorer: null,
+        settled_at: timestamp,
+        payer_wallet: String(transferData.senderAddress).toLowerCase()
       });
     }
 

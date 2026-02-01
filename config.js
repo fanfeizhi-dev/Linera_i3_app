@@ -10,9 +10,9 @@ const config = {
         temperature: 0.7
     },
 
-    // Pricing configuration (PHRS)
+    // Pricing configuration (LIN)
     pricing: {
-        currency: 'PHRS',
+        currency: 'LIN',
         pricePerApiCallUsdc: 0.0008,
         gasEstimatePerCallUsdc: 0.00025,
         sharePurchaseMinUsdc: 1,
@@ -27,13 +27,14 @@ const config = {
     },
     mcpBaseUrl: (typeof window !== 'undefined' && window.location) ? window.location.origin : 'http://localhost:3000',
 
-    // Solana payment rails
+    // Solana payment rails (legacy, kept for compatibility)
     solana: {
         cluster: 'mainnet-beta',
         rpcEndpoint: 'https://mainnet.helius-rpc.com/?api-key=fd6a5779-892d-47eb-a88b-bc961ca4b606',
-        phrsMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        linMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        usdcMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // alias for compatibility
         merchantAddress: 'FWSVwBwtyN3mFY96cR3myCbsNYawdyZRyX1W29nsFqYV',
-        phrsDecimals: 6
+        linDecimals: 6
     },
 
     // Server Configuration

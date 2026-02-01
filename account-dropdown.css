@@ -10,15 +10,40 @@
     right: 0;
     background: white;
     border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    min-width: 200px;
+    min-width: 260px;
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
     transition: all 0.2s ease;
     margin-top: 8px;
+    overflow: hidden;
+}
+
+/* Linera Info Section Styles */
+#lineraInfoSection {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border-bottom: 1px solid #d1fae5;
+}
+
+#lineraChainIdValue {
+    background: rgba(0,0,0,0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#lineraChainIdValue:hover {
+    background: rgba(0,0,0,0.1);
+}
+
+/* Disconnect button hover */
+#disconnectWalletBtn:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 .dropdown-content.show {

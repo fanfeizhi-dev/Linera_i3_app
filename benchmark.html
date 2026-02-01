@@ -777,6 +777,22 @@
     <script>
 	(function syncRenderNetworkBadge(){
 	  try {
+	    // 0) 清除旧的 pharos 网络配置（迁移到 linera）
+	    var oldPref = localStorage.getItem('i3_preferred_network');
+	    if (oldPref) {
+	      try {
+	        var parsed = JSON.parse(oldPref);
+	        if (parsed && parsed.key && (parsed.key.toLowerCase().indexOf('pharos') !== -1 || !['linera', 'solana'].includes(parsed.key))) {
+	          localStorage.setItem('i3_preferred_network', JSON.stringify({ key: 'linera' }));
+	        }
+	      } catch(e) {
+	        localStorage.setItem('i3_preferred_network', JSON.stringify({ key: 'linera' }));
+	      }
+	    }
+	    var oldChain = localStorage.getItem('currentChainKey');
+	    if (oldChain && oldChain.toLowerCase().indexOf('pharos') !== -1) {
+	      localStorage.setItem('currentChainKey', 'linera');
+	    }
 	    // 1) 读取本地"首选网络"（你已有 getPreferredNetwork）
 	    var pref = (window.getPreferredNetwork && window.getPreferredNetwork()) || null;
 	    // 2) 快速映射（仅用于首屏，不依赖任何 SDK）
@@ -789,7 +805,8 @@
 	      solana:   '/svg/chains/solana.svg',
           opbnb:   '/svg/chains/opbnb.svg',
           zksync:   '/svg/chains/zksync.svg',
-          base:   '/svg/chains/base.svg',   
+          base:   '/svg/chains/base.svg',
+          linera:   '/svg/chains/linera.svg',
 	    };
 	    var NAME = {
 	      ethereum: 'Ethereum',
@@ -801,18 +818,19 @@
           opbnb:   'opBNB',
           zksync:   'Zksync',
           base:   'Base',
+          linera:   'Linera',
 	    };
 	    // 3) 找到徽章节点（你按钮里已有这些 id）
 	    var badge  = document.getElementById('networkBadge');
 	    var iconEl = document.getElementById('networkBadgeIcon');
 	    var textEl = document.getElementById('networkBadgeText');
 	    if (!badge || !iconEl || !textEl) return;
-	    // 4) 计算首屏 key：Solana 直接显示 solana，其它默认 ethereum
-	    var key  = (pref && pref.key)  || 'ethereum';
-	    var kind = (pref && pref.kind) || 'evm';
+	    // 4) 计算首屏 key：优先使用用户选择的网络
+	    var key  = (pref && pref.key)  || 'linera';
+	    var kind = (pref && pref.kind) || 'linera';
 	    if (kind === 'solana') key = 'solana';
 	    // 5) 同步渲染，不等 SDK
-	    iconEl.src = ICON[key] || ICON.ethereum;
+	    iconEl.src = ICON[key] || ICON['linera'];
 	    iconEl.alt = NAME[key] || 'Network';
 	    textEl.textContent = NAME[key] || 'Network';
 	    badge.style.display = 'inline-flex';
@@ -901,8 +919,8 @@
                         <th>MODEL</th>
                         <th>CATEGORY</th>
                         <th>INDUSTRY</th>
-                        <th>PRICE / API CALL (PHRS)</th>
-                        <th>SHARE PRICE (PHRS)</th>
+                        <th>PRICE / API CALL (LIN)</th>
+                        <th>SHARE PRICE (LIN)</th>
                         <th>MARKET CHANGE</th>
                         <th>USAGE</th>
                         <th>COMPATIBILITY</th>
@@ -1934,7 +1952,7 @@
             
             <div class="wallet-modal-header">
                 <h2 class="wallet-modal-title">Log in or sign up</h2>
-                <p class="wallet-modal-subtitle">Log in and connect wallet to earn PHRS credits</p>
+                <p class="wallet-modal-subtitle">Log in and connect wallet to earn LIN credits</p>
             </div>
 
             <div class="wallet-options">
@@ -1943,8 +1961,8 @@
                         <img src="svg/metamask.svg" alt="MetaMask">
                     </span>
                     <div class="wallet-info">
-                        <div class="wallet-name">MetaMask (Pharos Testnet)</div>
-                        <div class="wallet-desc">Pay with PHRS on Pharos Testnet</div>
+                        <div class="wallet-name">MetaMask</div>
+                        <div class="wallet-desc">Sign payments for Linera (no chain switching)</div>
                     </div>
                 </div>
 
@@ -2010,7 +2028,7 @@
             
             <div class="wallet-modal-header">
                 <h2 class="wallet-modal-title">✅ Check-In on Chain</h2>
-                <p class="wallet-modal-subtitle">Complete your daily on-chain check-in to earn PHRS credits</p>
+                <p class="wallet-modal-subtitle">Complete your daily on-chain check-in to earn LIN credits</p>
             </div>
 
             <div id="userStatusSection" style="margin: 20px 0; padding: 16px; background: #f0fdf4; border-radius: 12px;">
@@ -2033,12 +2051,12 @@
             <div style="margin: 20px 0;">
                 <label style="display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">Network</label>
                 <select id="chainSelector" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;" disabled>
-                    <option value="PHAROS_TESTNET">Pharos Testnet</option>
+                    <option value="LINERA">Linera</option>
                 </select>
             </div>
 
             <div style="margin: 20px 0; padding: 12px; background: #fef3c7; border-radius: 8px; border: 1px solid #fcd34d;">
-                <p style="font-size: 13px; color: #92400e; margin: 0;">⛽ Gas fee: ≈0.00025 PHRS per call</p>
+                <p style="font-size: 13px; color: #92400e; margin: 0;">⛽ Gas fee: ≈0.00025 LIN per call</p>
             </div>
 
             <button id="executeCheckInBtn" onclick="executeOnChainCheckIn()" 

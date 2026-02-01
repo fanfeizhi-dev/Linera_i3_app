@@ -181,6 +181,7 @@
   }
 
   function ensurePanel() {
+    if (typeof document === 'undefined' || !document.body) return null;
     let panel = document.getElementById('mcp-status-panel');
     if (panel) return panel;
     panel = document.createElement('div');
@@ -203,7 +204,7 @@
         #mcp-status-panel .mcp-log small { display: block; margin-top: 3px; color: rgba(255,255,255,0.65); }
       </style>
       <button class="mcp-close" aria-label="Close">✕</button>
-      <h4>402 Payment Progress</h4>
+      <h4>Payment progress · Sign / Transfer</h4>
       <ul class="mcp-log"></ul>
     `;
     panel.querySelector('.mcp-close').addEventListener('click', () => {
@@ -215,6 +216,7 @@
 
   function logStatus(kind, text, meta = {}) {
     const panel = ensurePanel();
+    if (!panel) return;
     const list = panel.querySelector('.mcp-log');
     const li = document.createElement('li');
     const pillClass = {
@@ -224,9 +226,9 @@
       cancel: 'pill-cancel'
     }[kind] || 'pill-invoice';
     const title = {
-      invoice: '402 Invoice',
+      invoice: '402 Payment',
       payment: 'Paid',
-      result: 'Result',
+      result: 'Done',
       cancel: 'Cancelled'
     }[kind] || 'Update';
     const lines = [];
@@ -236,19 +238,11 @@
       lines.push(`🤖 Auto Router → <strong style="color: #a78bfa;">${meta.autoRouterModel}</strong>`);
     }
     
-    if (meta.amount) lines.push(`Amount: ${meta.amount} PHRS`);
+    if (meta.amount) lines.push(`Amount: ${meta.amount} LIN`);
     if (meta.memo) lines.push(`Memo: ${meta.memo}`);
     if (meta.tx) {
-      // 生成 Pharos explorer 链接
-      let explorer = meta.explorer;
-      if (!explorer) {
-        // 默认使用 Pharos Testnet explorer
-        explorer = `https://pharos-testnet.socialscan.io/tx/${encodeURIComponent(meta.tx)}`;
-      }
-      const short = `${meta.tx.slice(0, 6)}…${meta.tx.slice(-4)}`;
-      lines.push(
-        `Tx: <a href="${explorer}" target="_blank" rel="noopener noreferrer">${short}</a>`
-      );
+      // Linera-only: 只展示签名摘要（无链上 explorer）
+      lines.push(`Signature: ${meta.tx.slice(0, 6)}…${meta.tx.slice(-4)} (Linera)`);
     }
     if (meta.node) lines.push(`Node: ${meta.node}`);
     if (meta.description) lines.push(meta.description);
@@ -262,210 +256,107 @@
     panel.scrollTop = panel.scrollHeight;
   }
 
-  async function settleInvoice(invoice) {
+  function confirmPaymentOrThrow({ invoice, amount, balance }) {
+    const modelName = invoice.auto_router?.model?.id || invoice.model_or_node || 'AI Model';
+    const details = [
+      'Linera Transfer',
+      `Amount: ${amount} LIN`,
+      `Model: ${modelName}`,
+      balance != null ? `Your balance: ${balance} LIN` : null,
+      '',
+      'This will execute a real on-chain transfer on Linera Testnet.'
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const ok = window.confirm(details);
+    if (!ok) {
+      const err = new Error('Payment cancelled by user');
+      err.code = 'user_cancelled';
+      throw err;
+    }
+  }
+
+  async function settleInvoiceWithLineraSDK(invoice, opts = {}) {
+    console.log('[MCPClient] settleInvoiceWithLineraSDK (real transfer)', invoice);
+
+    const amount = invoice.amount_usdc ?? invoice.amount;
+    const recipient = (invoice.recipient || '').trim();
+    if (!recipient) throw new Error('Invoice missing recipient address');
+
+    if (!window.LineraWallet) {
+      throw new Error('Linera wallet module not loaded (linera-wallet.js).');
+    }
+
+    // 如果还没连上 Linera chain，这里尝试连接（会自动走 faucet）
+    const state = window.LineraWallet.getState?.() || {};
+    if (!state.connected) {
+      const res = await window.LineraWallet.connect();
+      if (!res?.success) {
+        throw new Error(res?.error || 'Failed to connect Linera wallet');
+      }
+    }
+
+    // 余额检查（仅用于 UX，后端仍会校验 amount/nonce）
+    let balance = null;
     try {
-      console.log('[MCPClient] settleInvoice (Pharos)', invoice);
-      const PHAROS_CHAIN_ID = '0xa8230'; // 688688
-      const FALLBACK_EXPLORER_BASE =
-        invoice.explorer_base_url ||
-        (window.APP_CONFIG &&
-          window.APP_CONFIG.mcp &&
-          window.APP_CONFIG.mcp.receipt_explorer_base_url) ||
-        'https://pharos-testnet.socialscan.io/tx';
+      const st = window.LineraWallet.getState?.() || {};
+      balance = st.balance ?? null;
+      if (balance != null && Number(balance) < Number(amount)) {
+        throw new Error(`Insufficient LIN balance: need ${amount}, have ${balance}`);
+      }
+    } catch (e) {
+      // 忽略余额读取失败，不阻塞支付（测试网偶发）
+      console.warn('[MCPClient] Balance check skipped:', e?.message || e);
+    }
 
-      // —— 1. 基本检查 ——
-      const recipient = (invoice.recipient || '').trim();
-      if (!recipient) {
-        throw new Error('Invoice missing recipient address');
-      }
-      const amount = invoice.amount_usdc ?? invoice.amount;
-      if (amount == null) {
-        throw new Error('Invoice missing amount');
-      }
-      const decimals =
-        typeof invoice.decimals === 'number'
-          ? invoice.decimals
-          : (window.APP_CONFIG &&
-             window.APP_CONFIG.mcp &&
-             window.APP_CONFIG.mcp.decimals) || 18;
+    if (!opts.skipNativeConfirm) {
+      confirmPaymentOrThrow({ invoice, amount, balance });
+    }
 
-      // —— 2. 拿到 MetaMask provider + 当前账户 ——
-      const wm = window.walletManager;
-      if (!wm) {
-        throw new Error('Wallet manager not available. Please refresh the page.');
-      }
-      const user =
-        typeof wm.getUserInfo === 'function'
-          ? wm.getUserInfo()
-          : { isConnected: false };
-      if (!user.isConnected || !user.address) {
-        throw new Error('Please connect MetaMask before making a payment.');
-      }
-      let provider = null;
-      if (typeof wm.getMetaMaskProvider === 'function') {
-        provider = wm.getMetaMaskProvider();
-      }
-      if (!provider && window.ethereum && window.ethereum.isMetaMask) {
-        provider = window.ethereum;
-      }
-      if (!provider || typeof provider.request !== 'function') {
-        throw new Error('MetaMask provider not detected. Please install or enable MetaMask.');
-      }
-
-      // —— 3. 确保链是 Pharos Testnet（必要时自动切链 / 加链） ——
-      let currentChainId = null;
-      try {
-        currentChainId = await provider.request({ method: 'eth_chainId' });
-      } catch (e) {
-        console.warn('[MCPClient] Failed to read chainId:', e);
-      }
-      let targetChainId = PHAROS_CHAIN_ID;
-      try {
-        if (typeof getPreferredNetwork === 'function') {
-          const preferred = getPreferredNetwork();
-          if (preferred && preferred.chainId) {
-            targetChainId = preferred.chainId;
-          }
-        }
-      } catch (e) {
-        console.warn('[MCPClient] getPreferredNetwork failed, using default Pharos chainId', e);
-      }
-
-      if (
-        currentChainId &&
-        currentChainId.toLowerCase() !== targetChainId.toLowerCase()
-      ) {
-        console.log('[MCPClient] Switching chain to Pharos Testnet', {
-          from: currentChainId,
-          to: targetChainId
-        });
-        try {
-          await provider.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: targetChainId }]
-          });
-        } catch (switchErr) {
-          console.warn('[MCPClient] wallet_switchEthereumChain failed:', switchErr);
-          const canAdd =
-            switchErr &&
-            (switchErr.code === 4902 || switchErr.code === '4902') &&
-            typeof getAddChainParams === 'function';
-          if (canAdd) {
-            try {
-              const addParams = getAddChainParams({
-                chainId: targetChainId,
-                name: 'Pharos Testnet'
-              });
-              await provider.request({
-                method: 'wallet_addEthereumChain',
-                params: [addParams]
-              });
-              await provider.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: targetChainId }]
-              });
-            } catch (addErr) {
-              console.error('[MCPClient] Failed to add/switch to Pharos chain', addErr);
-              if (typeof showNotification === 'function') {
-                showNotification(
-                  'Please manually switch MetaMask to Pharos Testnet and try again.',
-                  'error'
-                );
-              }
-              throw addErr;
-            }
-          } else {
-            if (typeof showNotification === 'function') {
-              showNotification(
-                'Please switch MetaMask to Pharos Testnet in your wallet and try again.',
-                'error'
-              );
-            }
-            throw switchErr;
-          }
-        }
-      }
-
-      // —— 4. 把 amount 转成 wei(hex) ——
-      function toHexWei(amountInput, decimalsInput) {
-        const decs =
-          typeof decimalsInput === 'number' && Number.isFinite(decimalsInput)
-            ? decimalsInput
-            : 18;
-        const s = String(amountInput).trim();
-        if (!s) return '0x0';
-        const parts = s.split('.');
-        const intRaw = parts[0] || '0';
-        const fracRaw = parts[1] || '';
-        const intPart = intRaw.replace(/^0+/, '') || '0';
-        const fracStr = fracRaw.replace(/0+$/, '');
-        if (fracStr.length > decs) {
-          throw new Error(
-            `Too many decimal places in amount (max ${decs}, got ${fracStr.length}).`
-          );
-        }
-        const fracPadded = fracStr + '0'.repeat(decs - fracStr.length);
-        const combined = (intPart === '0' ? '' : intPart) + fracPadded;
-        const big =
-          combined === '' ? 0n : BigInt(combined.replace(/^0+/, '') || '0');
-        return '0x' + big.toString(16);
-      }
-
-      const valueHex = toHexWei(amount, decimals);
-      const txParams = {
-        from: user.address,
-        to: recipient,
-        value: valueHex
-      };
-
-      if (typeof logStatus === 'function') {
-        logStatus('payment', `Sending PHRS payment of ${amount} on Pharos Testnet…`, {
-          to: recipient,
-          valueHex,
-          request_id: invoice.request_id,
-          nonce: invoice.nonce
-        });
-      }
-
-      console.log('[MCPClient] eth_sendTransaction params:', txParams);
-
-      // —— 5. 通过 MetaMask 发送交易 ——
-      const txHash = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [txParams]
+    if (typeof logStatus === 'function') {
+      logStatus('invoice', 'Initiating Linera transfer...', {
+        amount: amount,
+        memo: invoice.nonce,
+        autoRouterModel: invoice.auto_router?.model?.id || invoice.model_or_node
       });
+    }
 
-      if (!txHash) {
-        throw new Error('No transaction hash returned from MetaMask');
+    const result = await window.LineraWallet.settleInvoice(invoice);
+    if (!result?.success) {
+      throw new Error(result?.error || 'Linera transfer failed');
+    }
+
+    if (typeof logStatus === 'function') {
+      logStatus('payment', 'Linera transfer completed ✓', {
+        amount: amount,
+        memo: invoice.nonce,
+        tx: String(result.senderChainId || 'confirmed')
+      });
+    }
+
+    return {
+      type: 'linera_transfer',
+      success: true,
+      amount: result.amount ?? amount,
+      recipient: result.recipient ?? recipient,
+      senderChainId: result.senderChainId,
+      senderAddress: result.senderAddress,
+      nonce: invoice.nonce,
+      timestamp: result.timestamp || new Date().toISOString()
+    };
+  }
+
+  async function settleInvoice(invoice, opts = {}) {
+    try {
+      console.log('[MCPClient] settleInvoice', invoice);
+
+      // 使用 Linera SDK 真实转账
+      if (!window.LineraWallet) {
+        throw new Error('Linera Wallet module not loaded. Please refresh the page.');
       }
 
-      console.log('[MCPClient] Payment transaction sent:', txHash);
-
-      const explorerUrl =
-        FALLBACK_EXPLORER_BASE.replace(/\/+$/, '') +
-        '/' +
-        encodeURIComponent(txHash);
-
-      try {
-        if (typeof showExplorerToast === 'function') {
-          showExplorerToast({
-            url: explorerUrl,
-            title: 'Payment submitted',
-            subtitle: 'Click to view on Pharos explorer.'
-          });
-        }
-      } catch (e) {
-        console.warn('[MCPClient] Failed to show explorer toast:', e);
-      }
-
-      if (typeof logStatus === 'function') {
-        logStatus('payment', 'Payment transaction submitted. Awaiting verification…', {
-          tx: txHash,
-          explorerUrl
-        });
-      }
-
-      return txHash;
+      console.log('[MCPClient] Using Linera SDK for real transfer');
+      return await settleInvoiceWithLineraSDK(invoice, opts);
     } catch (error) {
       console.error('[MCPClient] settleInvoice error:', error);
       if (typeof logStatus === 'function') {
@@ -502,7 +393,7 @@
       if (networkRaw) {
         const network = JSON.parse(networkRaw);
         if (network && network.key) {
-          baseHeaders['X-Pharos-Network'] = network.key;
+          baseHeaders['X-Linera-Network'] = network.key;
           if (!payload.network) {
             payload.network = network.key;
           }
@@ -533,7 +424,14 @@
       }
 
       if (response.status === 402) {
-        const invoice = await response.json();
+        let invoice;
+        try {
+          const text = await response.text();
+          invoice = text && text.trim() ? JSON.parse(text) : {};
+        } catch (e) {
+          console.warn('[MCPClient] 402 body parse failed', e);
+          invoice = { status: 'payment_required' };
+        }
         console.log('[MCPClient] received 402 invoice', invoice);
         console.log('[MCPClient] Invoice status:', invoice.status);
         console.log('[MCPClient] Is payment_required?', invoice.status === 'payment_required');
@@ -749,7 +647,11 @@
         // 获取 Auto Router 选中的模型信息
         const autoRouterModel = invoice.auto_router?.model?.id || invoice.model_or_node || payload.model;
         
-        logStatus('invoice', invoice.description || 'Payment required', {
+        const isLinera = (invoice.network || '').toLowerCase() === 'linera';
+        const invoiceMsg = isLinera
+          ? 'Please sign with MetaMask (no gas, no chain switch). Pop-up will appear.'
+          : (invoice.description || 'Payment required');
+        logStatus('invoice', invoiceMsg, {
           amount: invoice.amount_usdc,
           memo: invoice.memo,
           autoRouterModel: autoRouterModel
@@ -765,7 +667,7 @@
         try {
           tx = opts.paymentProvider
           ? await opts.paymentProvider(invoice)
-            : await settleInvoice(invoice);
+            : await settleInvoice(invoice, { skipNativeConfirm: !!opts.onInvoice });
         } catch (paymentError) {
           history.push({ type: 'payment_error', invoice, error: paymentError });
           logStatus('cancel', `Payment failed: ${paymentError?.message || 'Payment error'}`, {
@@ -788,11 +690,36 @@
           baseHeaders['X-Wallet-Address'] = walletAddress;
         }
         const memoPart = invoice.memo ? `; memo=${invoice.memo}` : '';
-        paymentHeaders = {
-          'X-Request-Id': invoice.request_id,
-          'X-PAYMENT': `x402 tx=${tx}; amount=${invoice.amount_usdc}; nonce=${invoice.nonce}${memoPart}`
-        };
+
+        // 生成 X-PAYMENT header（仅支持 Linera 真实转账）
+        if (tx.type === 'linera_transfer') {
+          paymentHeaders = {
+            'X-Request-Id': invoice.request_id,
+            'X-PAYMENT': `x402-linera-transfer senderChainId=${tx.senderChainId}; senderAddress=${tx.senderAddress}; amount=${tx.amount}; nonce=${tx.nonce}; timestamp=${tx.timestamp}${memoPart}`
+          };
+        } else {
+          throw new Error(`Unsupported payment type: ${tx.type || typeof tx}`);
+        }
         continue;
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        let errBody = { status: response.status, message: response.statusText };
+        try {
+          if (text && text.trim()) errBody = { ...errBody, ...JSON.parse(text) };
+        } catch (_) {
+          if (text) errBody.raw = text;
+        }
+        console.warn('[MCPClient] request failed', fullEndpoint, errBody);
+        emit('error', { endpoint: fullEndpoint, response: errBody, status: response.status });
+        const msg = errBody.message || errBody.error || `Request failed: ${response.status}`;
+        if ((response.status === 500 || response.status === 502) && fullEndpoint.includes('/mcp/')) {
+          throw new Error(
+            msg + ' — Start the backend first: run npm run dev:full in the project directory, or run node serve.js in another terminal'
+          );
+        }
+        throw new Error(msg);
       }
 
       const result = await response.json();
@@ -803,33 +730,17 @@
       }
       emit('result', { endpoint: fullEndpoint, result });
       logStatus('result', 'Call completed', {});
-      try {
-        const explorerUrl =
-          result?.final_node?.explorer ||
-          result?.explorer ||
-          result?.receipt?.explorer ||
-          result?.meta?.verification?.explorerUrl;
-        if (explorerUrl) {
-          showExplorerToast({
-            url: explorerUrl,
-            title: 'On-chain Transaction',
-            subtitle: 'Click to view on Pharos explorer.'
-          });
-        }
-      } catch (toastError) {
-        console.warn('[MCPClient] failed to display explorer toast', toastError);
-      }
       return { status: 'ok', result, history };
     }
   }
 
-  async function invokeModel({ prompt, modelName, metadata } = {}) {
+  async function invokeModel({ prompt, modelName, metadata } = {}, opts = {}) {
     const body = {
       prompt,
       model: modelName,
       metadata: metadata || {}
     };
-    return request('/mcp/models.invoke', body, {});
+    return request('/mcp/models.invoke', body, opts);
   }
 
   async function executeWorkflow(payload, hooks = {}) {

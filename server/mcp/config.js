@@ -2,25 +2,38 @@ const path = require('path');
 
 // 网络配置映射
 const NETWORK_CONFIGS = {
-  'pharos-testnet': {
-    network: 'pharos-testnet',
-    // 这里不再配置 mint，因为我们使用的是原生 PHRS
-    explorerBaseUrl: 'https://pharos-testnet.socialscan.io/tx',
-    rpcUrl:
-      'https://api.zan.top/node/v1/pharos/testnet/35905838255149eaa94c610c79294f0f',
-    tokenType: 'native',
-    decimals: 18
+  'linera': {
+    network: 'linera',
+    // 方案A：真实转账（Testnet Conway）
+    // - explorerBaseUrl 用于前端/后端生成可点击的浏览器链接（若未来返回 tx id）
+    // - rpcUrl 预留给后端做链上校验（当前仍以 Testnet 轻校验为主）
+    explorerBaseUrl:
+      process.env.LINERA_EXPLORER_BASE_URL ||
+      'https://explorer.testnet-conway.linera.net',
+    rpcUrl: process.env.LINERA_RPC_URL || null,
+    // tokenType 用于 invoice 描述前端支付方式（transfer 优先，signature 兜底）
+    tokenType: 'transfer',
+    decimals: 18,
+    // 真实转账需要明确收款链（否则会默认转到用户自己的链）
+    recipientChainId: process.env.LINERA_RECIPIENT_CHAIN_ID || null,
+    faucetUrl:
+      process.env.LINERA_FAUCET_URL ||
+      'https://faucet.testnet-conway.linera.net',
+    networkName: process.env.LINERA_NETWORK_NAME || 'Testnet Conway'
   }
 };
 
-// 默认网络（mainnet）
-const DEFAULT_NETWORK = process.env.X402_NETWORK || 'pharos-testnet';
+// 默认网络
+const DEFAULT_NETWORK = process.env.X402_NETWORK || 'linera';
 
 const MCP_CONFIG = {
   payments: {
     network: DEFAULT_NETWORK,
-    // 对于 Pharos testnet，我们使用原生 PHRS 作为支付币
-    tokenType: NETWORK_CONFIGS[DEFAULT_NETWORK]?.tokenType || 'native',
+    // Linera 使用真实转账
+    tokenType: NETWORK_CONFIGS[DEFAULT_NETWORK]?.tokenType || 'transfer',
+    recipientChainId: NETWORK_CONFIGS[DEFAULT_NETWORK]?.recipientChainId || null,
+    faucetUrl: NETWORK_CONFIGS[DEFAULT_NETWORK]?.faucetUrl || null,
+    networkName: NETWORK_CONFIGS[DEFAULT_NETWORK]?.networkName || null,
     // 收款地址：可以通过环境变量覆盖
     recipient:
       process.env.X402_RECIPIENT ||
@@ -28,11 +41,11 @@ const MCP_CONFIG = {
     paymentUrl: process.env.X402_PAYMENT_URL || null,
     explorerBaseUrl:
       NETWORK_CONFIGS[DEFAULT_NETWORK]?.explorerBaseUrl ||
-      'https://pharos-testnet.socialscan.io/tx',
+      null,
     rpcUrl:
       NETWORK_CONFIGS[DEFAULT_NETWORK]?.rpcUrl ||
-      'https://api.zan.top/node/v1/pharos/testnet/35905838255149eaa94c610c79294f0f',
-    // PHRS 默认使用 18 位精度
+      null,
+    // Linera 默认使用 18 位精度
     decimals: Number(
       process.env.X402_DECIMALS ||
         NETWORK_CONFIGS[DEFAULT_NETWORK]?.decimals ||
@@ -51,18 +64,21 @@ const MCP_CONFIG = {
 // 根据请求头获取网络配置
 function getNetworkConfigFromRequest(req) {
   const networkHeader =
-    req.headers['x-pharos-network'] ||
+    req.headers['x-linera-network'] ||
     req.body?.network ||
     DEFAULT_NETWORK;
   const networkKey = networkHeader || DEFAULT_NETWORK;
-  const config = NETWORK_CONFIGS[networkKey] || NETWORK_CONFIGS[DEFAULT_NETWORK];
+  const config = NETWORK_CONFIGS[networkKey] || NETWORK_CONFIGS[DEFAULT_NETWORK] || {};
   return {
     ...MCP_CONFIG.payments,
-    network: config.network,
+    network: config.network || DEFAULT_NETWORK,
     explorerBaseUrl: config.explorerBaseUrl,
     rpcUrl: config.rpcUrl,
     decimals: config.decimals ?? MCP_CONFIG.payments.decimals,
-    tokenType: config.tokenType || MCP_CONFIG.payments.tokenType
+    tokenType: config.tokenType || MCP_CONFIG.payments.tokenType,
+    recipientChainId: config.recipientChainId || MCP_CONFIG.payments.recipientChainId || null,
+    faucetUrl: config.faucetUrl || MCP_CONFIG.payments.faucetUrl || null,
+    networkName: config.networkName || MCP_CONFIG.payments.networkName || null
   };
 }
 

@@ -75,11 +75,12 @@ async function waitForAccounts(provider, { totalMs = 15000, stepMs = 300 } = {})
 // 1) MetaMask —— Switch-first: 先切链 → 再请求账户 → 等到账户 → 刷UI → 关弹窗
 async function connectMetaMaskWallet() {
   const preferred = getPreferredNetwork();
-  if (!preferred || preferred.kind !== 'evm') {
-    showNotification('Invalid network: Please choose an EVM network first.', 'error');
+  // 支持 EVM 网络和 Linera（Linera 只需要 MetaMask 签名，不需要切换链）
+  if (!preferred || (preferred.kind !== 'evm' && preferred.kind !== 'linera')) {
+    showNotification('Invalid network: Please choose an EVM or Linera network first.', 'error');
     return;
   }
-  console.log('[Connect][MetaMask] start (switch-first)');
+  console.log('[Connect][MetaMask] start, network:', preferred.name, 'kind:', preferred.kind);
 
   try {
     // ① 取得 provider（尽量用已注入的）
@@ -90,8 +91,10 @@ async function connectMetaMaskWallet() {
       throw new Error('MetaMask provider not found');
     }
 
-    // ② 先确保切到“用户选的链”（必要时添加链）
-    await enforcePreferredEvmChain(provider);
+    // ② 如果是 EVM 网络，确保切换到正确的链；Linera 不需要切链
+    if (preferred.kind === 'evm') {
+      await enforcePreferredEvmChain(provider);
+    }
 
     // ③ 再请求账户授权 + 等到账户（一次完成授权，避免第二次点击）
     await provider.request({ method: 'eth_requestAccounts' });
@@ -108,12 +111,33 @@ async function connectMetaMaskWallet() {
         detail: { address, credits: window.walletManager.credits || 0, isNewUser: !window.walletManager.getWalletData?.(address) }
       }));
     }
+    
+    // ④.5 如果是 Linera 网络，初始化 Linera 钱包并设置徽章
+    if (preferred.kind === 'linera') {
+      console.log('[connectMetaMaskWallet] Initializing Linera wallet...');
+      renderNetworkBadge({ name: preferred.name, icon: preferred.icon });
+      
+      // 异步初始化 Linera 钱包（不阻塞主流程）
+      if (window.LineraWallet) {
+        window.LineraWallet.connect().then(result => {
+          if (result.success) {
+            console.log('[connectMetaMaskWallet] Linera wallet connected:', result);
+            showNotification(`Linera Testnet connected. Balance: ${result.balance}`, 'success');
+          } else {
+            console.warn('[connectMetaMaskWallet] Linera wallet connection failed:', result.error);
+            // 不显示错误，因为签名支付仍然可用
+          }
+        }).catch(err => {
+          console.warn('[connectMetaMaskWallet] Linera wallet error:', err);
+        });
+      }
+    }
 
     // ⑤ 成功后再关你的白色弹窗
     const modal = document.getElementById('walletModal');
     if (modal) { modal.classList.remove('show'); modal.style.display = 'none'; }
 
-    showNotification('MetaMask connected.', 'success');
+    showNotification(`MetaMask connected on ${preferred.name}.`, 'success');
     console.log('[Connect][MetaMask] success ->', address);
   } catch (e) {
     console.error('[Connect][MetaMask] error:', e);
@@ -543,9 +567,9 @@ function updateWalletUI(address, credits) {
 
     setWalletTypeIcon(window.walletManager?.walletType || null);
 
-    // 不再显示I3 tokens，改为显示PHRS（仅Solana）
+    // 不再显示I3 tokens，改为显示LIN（仅Solana）
     if (usdcDisplay && address && window.walletManager?.walletType?.includes('solana')) {
-        window.walletManager?.updatePHRSBalance?.();
+        window.walletManager?.updateLINBalance?.();
     } else if (usdcDisplay) {
         // 未连接或非Solana钱包：隐藏
         usdcDisplay.style.display = 'none';
@@ -716,16 +740,63 @@ window.addEventListener('walletConnected', function(event) {
     updateConnectButton(true);
     updateCheckinButton();
     
+    // 修复：当首选网络是 Linera 时，强制显示 Linera 徽章
+    const preferred = getPreferredNetwork();
+    console.log('[walletConnected] Preferred network:', preferred);
+    
+    // 强制设置 Linera 徽章（如果首选网络是 Linera）
+    const setLineraNetworkBadge = () => {
+        const pref = getPreferredNetwork();
+        if (pref && pref.kind === 'linera') {
+            console.log('[walletConnected] Force setting Linera badge');
+            renderNetworkBadge({ name: pref.name, icon: pref.icon });
+            return true;
+        }
+        return false;
+    };
+    
+    if (preferred && preferred.kind === 'linera') {
+        // Linera 网络不依赖 MetaMask 的 chainId，直接显示 Linera
+        console.log('[walletConnected] Setting Linera badge');
+        renderNetworkBadge({ name: preferred.name, icon: preferred.icon });
+        // 延迟再次设置，防止被 chainChanged 事件覆盖
+        setTimeout(setLineraNetworkBadge, 100);
+        setTimeout(setLineraNetworkBadge, 500);
+    } else {
+        // 其他网络（如 EVM 或 Solana）根据实际情况显示
+        const walletType = window.walletManager?.walletType;
+        if (walletType && walletType.startsWith('solana')) {
+            const info = mapChainIdToDisplay(null, walletType, 'devnet');
+            renderNetworkBadge(info);
+        } else {
+            // EVM 网络：读取 MetaMask 当前链
+            const mm = window.walletManager?.getMetaMaskProvider?.();
+            if (mm && typeof mm.request === 'function') {
+                mm.request({ method: 'eth_chainId' }).then((cid) => {
+                    // 再次检查是否是 Linera 网络（防止异步覆盖）
+                    if (setLineraNetworkBadge()) return;
+                    const info = mapChainIdToDisplay(cid, walletType);
+                    if (info) renderNetworkBadge(info);
+                }).catch(() => {});
+            }
+        }
+    }
+    
     // Persist wallet linkage to Firestore after Firebase is ready
     const writeWalletLinkage = () => {
         try {
             if (typeof window.onWalletConnected !== 'function') return;
+            // 当首选网络是 Linera 时，传递 Linera 网络信息
+            const preferredNet = getPreferredNetwork();
+            if (preferredNet && preferredNet.kind === 'linera') {
+                window.onWalletConnected(address, null, 'Linera');
+                return;
+            }
+            // 其他网络：读取 MetaMask 的 chainId
             const mm = window.walletManager?.getMetaMaskProvider?.();
 			if (mm && typeof mm.request === 'function') {
 			  mm.request({ method: 'eth_chainId' }).then((cid) => {
 			    const networkName = mapChainIdToName(cid);
-                const info = mapChainIdToDisplay(cid, window.walletManager?.walletType);
-                renderNetworkBadge(info);
 			    window.onWalletConnected(address, cid, networkName);
 			  }).catch(() => window.onWalletConnected(address));
 			} else {
@@ -783,9 +854,9 @@ window.addEventListener('dailyCheckinSuccess', function(event) {
     const { reward, newBalance, totalCheckins } = event.detail;
     
     // 不再显示I3 tokens
-    // 如果是Solana钱包，更新PHRS余额
+    // 如果是Solana钱包，更新LIN余额
     if (window.walletManager?.walletType?.includes('solana')) {
-        window.walletManager?.updatePHRSBalance?.();
+        window.walletManager?.updateLINBalance?.();
     }
     
     updateCheckinButton();
@@ -799,9 +870,9 @@ window.addEventListener('creditsSpent', function(event) {
     const { amount, newBalance, reason } = event.detail;
     
     // 不再显示I3 tokens
-    // 如果是Solana钱包，更新PHRS余额
+    // 如果是Solana钱包，更新LIN余额
     if (window.walletManager?.walletType?.includes('solana')) {
-        window.walletManager?.updatePHRSBalance?.();
+        window.walletManager?.updateLINBalance?.();
     }
     
     showNotification(`Spent ${amount} I3 tokens for ${reason}`, 'success');
@@ -875,29 +946,16 @@ function getAddChainParams(preferred) {
     '0x44d':  { chainName:'Polygon zkEVM',    rpcUrls:['https://zkevm-rpc.com'] },
     '0xa':    { chainName:'Optimism',         rpcUrls:['https://mainnet.optimism.io'] },
     '0xcc':   { chainName:'opBNB',            rpcUrls:['https://opbnb-mainnet-rpc.bnbchain.org'] },
-    '0xa8230': {
-      chainName: 'Pharos Testnet',
-      rpcUrls: ['https://api.zan.top/node/v1/pharos/testnet/35905838255149eaa94c610c79294f0f']
-    },
   };
   const base = MAP[preferred.chainId] || { chainName: preferred.name, rpcUrls: [] };
   
-  // 为 Pharos Testnet 使用 PHRS 作为原生货币，其他链使用 ETH
-  const nativeCurrency = preferred.chainId === '0xa8230' 
-    ? {name:'Pharos',symbol:'PHRS',decimals:18}
-    : {name:'ETH',symbol:'ETH',decimals:18};
-  
-  // 为 Pharos Testnet 添加区块浏览器 URL
-  const blockExplorerUrls = preferred.chainId === '0xa8230' 
-    ? ['https://pharos-testnet.socialscan.io']
-    : undefined;
+  const nativeCurrency = { name:'ETH', symbol:'ETH', decimals:18 };
   
   return { 
     chainId: preferred.chainId, 
     chainName: base.chainName, 
     rpcUrls: base.rpcUrls, 
-    nativeCurrency,
-    ...(blockExplorerUrls && { blockExplorerUrls })
+    nativeCurrency
   };
 }
 
@@ -915,7 +973,6 @@ function mapChainIdToDisplay(chainId, walletType, solanaNetworkHint) {
     '0x2105':  { name:'Base',          icon:'svg/chains/base.svg' },
     '0x144':   { name:'ZKsync Era',    icon:'svg/chains/zksync.svg' },
     '0xcc':    { name:'opBNB',         icon:'svg/chains/opbnb.svg' },
-    '0xa8230': { name:'Pharos Testnet', icon:'svg/chains/pharos.jpg' },
   };
   // Solana（用 walletType + network hint）
   if ((walletType || '').startsWith('solana')) {
@@ -1065,17 +1122,16 @@ function selectNetwork(key) {
 
 // ===== Preferred Network (pre-connect) =====
 const I3_NETWORKS = {
-  'pharos-testnet': {
-    kind: 'evm',
-    key: 'pharos-testnet',
-    name: 'Pharos Testnet',
-    icon: 'svg/chains/pharos.jpg', // 临时复用一个现有图标，你可以以后换成 pharos 图标
-    network: 'pharos-testnet',
-    chainId: '0xa8230', // 688688
-    rpcEndpoint: 'https://api.zan.top/node/v1/pharos/testnet/35905838255149eaa94c610c79294f0f',
-    // 下面两个只是为了兼容旧的 updateNetworkConfig，不会真正用到
-    usdcMint: '0x0000000000000000000000000000000000000000',
-    explorerBaseUrl: 'https://pharos-testnet.socialscan.io/tx'
+  'linera': {
+    kind: 'linera',
+    key: 'linera',
+    name: 'Linera',
+    icon: 'svg/chains/linera.svg',
+    network: 'linera',
+    chainId: null, // Linera 不需要 EVM chainId
+    rpcEndpoint: null, // Linera 不需要 RPC
+    explorerBaseUrl: null, // 签名支付没有链上交易
+    description: 'Pay with Linera signature (no gas fees)'
   }
 };
 
@@ -1084,35 +1140,35 @@ function getPreferredNetwork() {
     const raw = localStorage.getItem('i3_preferred_network');
     const data = raw ? JSON.parse(raw) : null;
     if (data && I3_NETWORKS[data.key]) return I3_NETWORKS[data.key];
+    // 旧值（例如已移除的网络）自动回退并修正为 linera
+    if (data && data.key && data.key !== 'linera') {
+      localStorage.setItem('i3_preferred_network', JSON.stringify({ key: 'linera' }));
+    }
   } catch {}
-  // 默认使用 Pharos Testnet
-  return I3_NETWORKS['pharos-testnet'];
+  // 默认使用 Linera
+  return I3_NETWORKS['linera'];
 }
 
 function setPreferredNetwork(key) {
-  const n = I3_NETWORKS[key] || I3_NETWORKS['pharos-testnet'];
+  const n = I3_NETWORKS[key] || I3_NETWORKS['linera'];
   localStorage.setItem('i3_preferred_network', JSON.stringify({ key: n.key }));
   // 更新全局配置（主要是给 MCP 用 explorerBaseUrl）
   updateNetworkConfig(n);
   // 刷新徽章
   renderNetworkBadge({ name: n.name, icon: n.icon });
+  // 更新登录弹窗的网络文本
+  if (typeof window.updateWalletModalNetworkText === 'function') {
+    window.updateWalletModalNetworkText();
+  }
   // 触发网络变更事件
   window.dispatchEvent(new CustomEvent('networkChanged', { detail: n }));
 }
 
 function updateNetworkConfig(network) {
-  // 更新 window.APP_CONFIG
-  if (window.APP_CONFIG) {
-    if (!window.APP_CONFIG.solana) window.APP_CONFIG.solana = {};
-    window.APP_CONFIG.solana.cluster = network.network;
-    window.APP_CONFIG.solana.rpcEndpoint = network.rpcEndpoint;
-    window.APP_CONFIG.solana.usdcMint = network.usdcMint;
-    window.APP_CONFIG.mcp.receiptExplorerBaseUrl = network.explorerBaseUrl;
-  }
-  
-  // 更新 chains.js 中的 SOLANA 配置
-  if (window.SOLANA) {
-    window.SOLANA.cluster = network.network;
+  // 仅用于前端把“首选网络”信息传递给 MCPClient / UI
+  if (window.APP_CONFIG && window.APP_CONFIG.mcp) {
+    // Linera 签名支付没有链上 explorer
+    window.APP_CONFIG.mcp.receiptExplorerBaseUrl = network.explorerBaseUrl || null;
   }
   
   console.log('✅ Network configuration updated:', network.name);
@@ -1245,265 +1301,4 @@ window.executeOnChainCheckIn = executeOnChainCheckIn;
 
 console.log('✅ On-chain check-in modal functions loaded');
 
-// ===== 更新 Pharos Testnet 配置（PHRS 货币单位）=====
-async function updatePharosNetworkInMetaMask() {
-  try {
-    const provider = window.walletManager?.getMetaMaskProvider?.() || window.ethereum;
-    if (!provider) {
-      throw new Error('MetaMask 未检测到。请安装 MetaMask 扩展程序。');
-    }
-
-    const pharosConfig = {
-      chainId: '0xa8230',
-      chainName: 'Pharos Testnet',
-      rpcUrls: ['https://api.zan.top/node/v1/pharos/testnet/35905838255149eaa94c610c79294f0f'],
-      nativeCurrency: {
-        name: 'Pharos',
-        symbol: 'PHRS',
-        decimals: 18
-      },
-      blockExplorerUrls: ['https://pharos-testnet.socialscan.io']
-    };
-
-    console.log('🔄 正在更新 Pharos Testnet 配置到 MetaMask...');
-    
-    // 检查网络是否已存在
-    let networkExists = false;
-    try {
-      await provider.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0xa8230' }]
-      });
-      networkExists = true;
-      console.log('✅ Pharos Testnet 已存在于 MetaMask 中');
-    } catch (switchError) {
-      if (switchError.code === 4902) {
-        // 网络不存在，直接添加
-        console.log('📝 Pharos Testnet 不存在，正在添加...');
-        networkExists = false;
-      } else {
-        throw switchError;
-      }
-    }
-
-    if (networkExists) {
-      // 网络已存在 - 由于 MetaMask 限制，无法直接更新货币符号
-      // 需要提示用户手动操作
-      const message = `
-⚠️ Important Notice:
-
-Due to MetaMask limitations, the currency symbol for an existing network cannot be updated directly.
-
-Please follow these steps to manually update:
-
-1️⃣ Open MetaMask
-2️⃣ Click on "Pharos Testnet" network name at the top
-3️⃣ Find "Pharos Testnet" in the network list, click the three dots (⋮) on the right
-4️⃣ Select "Delete" or "Remove"
-5️⃣ Return to this page and click the update button again
-
-📌 Alternatively, you can continue using the current network. Although it shows ETH, the actual payment is in PHRS.
-      `;
-      
-      const shouldContinue = confirm(message + '\n\nWould you like to continue adding the new Pharos Testnet configuration?\n(Note: You need to manually delete the old network first)');
-      
-      if (!shouldContinue) {
-        console.log('User cancelled the update operation');
-        return false;
-      }
-    }
-
-    // 添加网络（新网络或用户确认要添加）
-    try {
-      await provider.request({
-        method: 'wallet_addEthereumChain',
-        params: [pharosConfig]
-      });
-      
-      console.log('✅ Pharos Testnet configuration added/updated! Currency unit is now displayed as PHRS.');
-      
-      if (typeof showNotification === 'function') {
-        showNotification('✅ Pharos Testnet configured! Now using PHRS as currency unit. Refresh the page for it to take effect.', 'success');
-      } else {
-        alert('✅ Pharos Testnet configured! Now using PHRS as currency unit.\n\nPlease refresh the page before making payments.');
-      }
-      
-      return true;
-    } catch (addError) {
-      if (addError.code === -32602 || addError.message?.includes('already exists')) {
-        // 网络已存在的错误
-        const helpMessage = `
-⚠️ Pharos Testnet 已存在但使用旧配置
-
-要更新为 PHRS 单位，请手动操作：
-
-1. 打开 MetaMask
-2. 点击顶部网络名称
-3. 找到 "Pharos Testnet"，点击 ⋮ 
-4. 选择 "删除"
-5. 回到本页面重新添加
-
-或者继续使用当前配置（虽然显示 ETH，实际是 PHRS）
-        `;
-        alert(helpMessage);
-        return false;
-      }
-      throw addError;
-    }
-
-  } catch (error) {
-    console.error('更新 Pharos Testnet 配置失败:', error);
-    
-    const errorMsg = error.code === 4001 
-      ? '您取消了网络更新。' 
-      : `更新失败: ${error.message}`;
-    
-    if (typeof showNotification === 'function') {
-      showNotification(errorMsg, 'error');
-    } else {
-      alert('❌ ' + errorMsg);
-    }
-    
-    return false;
-  }
-}
-
-// 显示详细的更新指南
-function showPharosUpdateGuide() {
-  const modal = document.createElement('div');
-  modal.style.cssText = `
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-    background: rgba(0,0,0,0.7); z-index: 999999; 
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Inter', -apple-system, sans-serif;
-  `;
-  
-  modal.innerHTML = `
-    <div style="background: white; border-radius: 20px; padding: 32px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2 style="margin: 0; color: #1a1a1a; font-size: 24px; font-weight: 700;">
-          🔄 更新 Pharos 网络配置
-        </h2>
-        <button onclick="this.closest('div[style*=fixed]').remove()" 
-                style="border: none; background: none; font-size: 28px; color: #666; cursor: pointer; padding: 0; width: 32px; height: 32px;">
-          ×
-        </button>
-      </div>
-      
-      <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; margin-bottom: 24px; border-radius: 8px;">
-        <strong style="color: #856404;">⚠️ 重要说明</strong>
-        <p style="margin: 8px 0 0; color: #856404; font-size: 14px;">
-          由于 MetaMask 限制，必须先删除旧的 Pharos Testnet 网络，然后重新添加才能显示 PHRS 单位。
-        </p>
-      </div>
-      
-      <div style="margin-bottom: 24px;">
-        <h3 style="color: #333; font-size: 18px; margin: 0 0 16px;">📝 操作步骤：</h3>
-        
-        <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: start;">
-          <div style="background: #667eea; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 700;">1</div>
-          <div style="flex: 1;">
-            <strong style="color: #1a1a1a; display: block; margin-bottom: 4px;">打开 MetaMask</strong>
-            <p style="margin: 0; color: #666; font-size: 14px;">点击浏览器右上角的 MetaMask 扩展图标</p>
-          </div>
-        </div>
-        
-        <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: start;">
-          <div style="background: #667eea; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 700;">2</div>
-          <div style="flex: 1;">
-            <strong style="color: #1a1a1a; display: block; margin-bottom: 4px;">删除旧网络</strong>
-            <p style="margin: 0; color: #666; font-size: 14px;">
-              • 点击顶部的 "Pharos Testnet" 网络名称<br>
-              • 在网络列表中找到 "Pharos Testnet"<br>
-              • 点击右侧的三个点 <strong>⋮</strong><br>
-              • 选择 <strong>"删除"</strong> 或 <strong>"Delete"</strong>
-            </p>
-          </div>
-        </div>
-        
-        <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: start;">
-          <div style="background: #667eea; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 700;">3</div>
-          <div style="flex: 1;">
-            <strong style="color: #1a1a1a; display: block; margin-bottom: 4px;">重新添加网络</strong>
-            <p style="margin: 0 0 12px; color: #666; font-size: 14px;">删除后，点击下方按钮自动添加新配置：</p>
-            <button onclick="updatePharosNetworkInMetaMask()" 
-                    style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">
-              🚀 添加 Pharos Testnet (PHRS)
-            </button>
-          </div>
-        </div>
-        
-        <div style="display: flex; gap: 12px; align-items: start;">
-          <div style="background: #10b981; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 700;">✓</div>
-          <div style="flex: 1;">
-            <strong style="color: #1a1a1a; display: block; margin-bottom: 4px;">完成！</strong>
-            <p style="margin: 0; color: #666; font-size: 14px;">刷新页面后，所有支付将显示 PHRS 单位</p>
-          </div>
-        </div>
-      </div>
-      
-      <div style="background: #e7f3ff; border-radius: 8px; padding: 16px; margin-top: 24px;">
-        <strong style="color: #0066cc; font-size: 14px;">💡 提示</strong>
-        <p style="margin: 8px 0 0; color: #0066cc; font-size: 13px;">
-          如果不想手动删除，可以继续使用当前网络。虽然显示 "ETH"，但实际支付的是 Pharos 代币 (PHRS)，不影响功能。
-        </p>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.remove();
-  });
-}
-
-// 导出到全局
-window.updatePharosNetworkInMetaMask = updatePharosNetworkInMetaMask;
-window.showPharosUpdateGuide = showPharosUpdateGuide;
-
-console.log('✅ Pharos 网络更新函数已加载');
-console.log('💡 提示: 运行 showPharosUpdateGuide() 查看详细更新指南');
-console.log('💡 提示: 运行 updatePharosNetworkInMetaMask() 快速添加/更新网络');
-
-// 检查用户是否需要更新网络配置
-async function checkAndPromptNetworkUpdate() {
-  try {
-    const provider = window.walletManager?.getMetaMaskProvider?.() || window.ethereum;
-    if (!provider) return;
-
-    // 检查是否已经提示过
-    const hasPrompted = localStorage.getItem('pharos_network_update_prompted');
-    if (hasPrompted === 'true') return;
-
-    // 检查用户当前的链 ID
-    const currentChainId = await provider.request({ method: 'eth_chainId' });
-    
-    // 如果用户在 Pharos Testnet 上，检查是否需要更新
-    if (currentChainId === '0xa8230') {
-      // 延迟3秒后显示提示，避免在页面加载时立即弹出
-      setTimeout(() => {
-        if (typeof showNotification === 'function') {
-          showNotification(
-            '💡 提示: 点击右上角的网络徽章，然后点击"更新 MetaMask 中的 Pharos 网络"按钮，将支付单位更新为 PHRS！',
-            'info',
-            10000  // 显示 10 秒
-          );
-        }
-        
-        // 标记已提示
-        localStorage.setItem('pharos_network_update_prompted', 'true');
-      }, 3000);
-    }
-  } catch (error) {
-    console.log('检查网络更新状态时出错:', error);
-  }
-}
-
-// 在页面加载完成后检查
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(checkAndPromptNetworkUpdate, 2000);
-  });
-} else {
-  setTimeout(checkAndPromptNetworkUpdate, 2000);
-}
+// Linera-only: 已移除旧的“添加/更新特定 EVM 网络”辅助与提示逻辑

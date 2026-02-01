@@ -254,16 +254,16 @@ class WalletManager {
 	  }
 	}
 
-		// 获取Solana PHRS余额
-	async updatePHRSBalance() {
+		// 获取Solana LIN余额
+	async updateLINBalance() {
 		try {
 			const usdcDisplay = document.getElementById('usdcDisplay');
 			if (!usdcDisplay || !this.solanaConn || !this.solanaAddress) {
 				return;
 			}
 
-			// Solana PHRS mint地址 (从配置读取，默认为mainnet)
-			const PHRS_MINT = (window.APP_CONFIG && window.APP_CONFIG.solana && window.APP_CONFIG.solana.usdcMint) || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+			// Solana LIN mint地址 (从配置读取，默认为mainnet)
+			const LIN_MINT = (window.APP_CONFIG && window.APP_CONFIG.solana && window.APP_CONFIG.solana.usdcMint) || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 			
 			// 动态导入 @solana/spl-token
 			const { getAssociatedTokenAddress, getAccount } = await import('https://esm.sh/@solana/spl-token@0.4.8');
@@ -275,7 +275,7 @@ class WalletManager {
 			}
 
 			const walletPubkey = new PublicKey(this.solanaAddress);
-			const usdcMintPubkey = new PublicKey(PHRS_MINT);
+			const usdcMintPubkey = new PublicKey(LIN_MINT);
 			
 			// 获取关联的token账户地址
 			const tokenAccountAddress = await getAssociatedTokenAddress(
@@ -286,28 +286,28 @@ class WalletManager {
 			try {
 				// 获取token账户信息
 				const tokenAccount = await getAccount(this.solanaConn, tokenAccountAddress);
-				const balance = Number(tokenAccount.amount) / 1e6; // PHRS有6位小数
+				const balance = Number(tokenAccount.amount) / 1e6; // LIN有6位小数
 				const rounded = balance.toFixed(2);
 				
 				usdcDisplay.style.display = 'inline';
-				usdcDisplay.textContent = `${rounded} PHRS`;
-				console.log('PHRS balance:', rounded);
+				usdcDisplay.textContent = `${rounded} LIN`;
+				console.log('LIN balance:', rounded);
 			} catch (err) {
 				// Token账户不存在或余额为0
 				if (err.name === 'TokenAccountNotFoundError') {
 					usdcDisplay.style.display = 'inline';
-					usdcDisplay.textContent = '0.00 PHRS';
-					console.log('PHRS balance: 0.00 (no token account)');
+					usdcDisplay.textContent = '0.00 LIN';
+					console.log('LIN balance: 0.00 (no token account)');
 				} else {
 					throw err;
 				}
 			}
 		} catch (error) {
-			console.warn('Failed to fetch PHRS balance:', error);
+			console.warn('Failed to fetch LIN balance:', error);
 			const usdcDisplay = document.getElementById('usdcDisplay');
 			if (usdcDisplay) {
 				usdcDisplay.style.display = 'inline';
-				usdcDisplay.textContent = '-- PHRS';
+				usdcDisplay.textContent = '-- LIN';
 			}
 		}
 	}
@@ -477,6 +477,12 @@ class WalletManager {
         provider.on?.('chainChanged', (chainId) => {
             console.log('Chain changed to:', chainId);
             try {
+              // 当首选网络是 Linera 时，不更新网络徽章（保持显示 Linera）
+              const preferred = typeof getPreferredNetwork === 'function' ? getPreferredNetwork() : null;
+              if (preferred && preferred.kind === 'linera') {
+                console.log('[WalletManager] WC chainChanged ignored for Linera network');
+                return;
+              }
               const info = mapChainIdToDisplay(chainId, this.walletType);
               renderNetworkBadge(info);
             } catch (e) {}
@@ -894,7 +900,7 @@ disconnectWallet() {
 			}
 		}));
 
-		console.log(`Daily checkin successful! Earned ${DAILY_REWARD} PHRS.`, claimResult);
+		console.log(`Daily checkin successful! Earned ${DAILY_REWARD} LIN.`, claimResult);
 
 		return {
 			success: true,
@@ -1060,6 +1066,12 @@ disconnectWallet() {
 
 		this.ethereum.on('chainChanged', (newCid) => {
   			try {
+    			// 当首选网络是 Linera 时，不更新网络徽章（保持显示 Linera）
+    			const preferred = typeof getPreferredNetwork === 'function' ? getPreferredNetwork() : null;
+    			if (preferred && preferred.kind === 'linera') {
+    			  console.log('[WalletManager] chainChanged ignored for Linera network');
+    			  return;
+    			}
     			const info = mapChainIdToDisplay(newCid, this.walletType);
     			renderNetworkBadge(info);
   			} catch (e) {}
@@ -1083,9 +1095,9 @@ disconnectWallet() {
 				accountBtnText.textContent =
 					`${this.walletAddress.slice(0, 6)}...${this.walletAddress.slice(-4)}`;
 			}
-			// 已连接 —— 如果是Solana钱包，显示PHRS余额
+			// 已连接 —— 如果是Solana钱包，显示LIN余额
 			if (usdcDisplay && this.walletType && this.walletType.includes('solana')) {
-				this.updatePHRSBalance();
+				this.updateLINBalance();
 			} else if (usdcDisplay) {
 				usdcDisplay.style.display = 'none';
 			}
@@ -1126,7 +1138,7 @@ disconnectWallet() {
 			}
 			if (checkinStatus) checkinStatus.style.display = 'block';
 		} else {
-			// 未连接 —— 只显示 Login，隐藏 PHRS
+			// 未连接 —— 只显示 Login，隐藏 LIN
 			if (accountBtnText) {
 				accountBtnText.textContent = 'Login';
 			}

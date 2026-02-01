@@ -44,9 +44,16 @@ function build402Body(entry, extras = {}, networkConfig = null) {
     request_id: entry.request_id,
     nonce: entry.nonce,
     amount_usdc: entry.amount_usdc,
-    currency: 'PHRS',
+    currency: 'LIN',
     recipient: paymentConfig.recipient || MCP_CONFIG.payments.recipient,
+    // Linera 真实转账需要指定收款链（可为空：前端会自行兜底，但推荐配置）
+    recipient_chain_id:
+      paymentConfig.recipientChainId ||
+      MCP_CONFIG.payments.recipientChainId ||
+      null,
     network: paymentConfig.network || MCP_CONFIG.payments.network,
+    network_name: paymentConfig.networkName || MCP_CONFIG.payments.networkName || null,
+    faucet_url: paymentConfig.faucetUrl || MCP_CONFIG.payments.faucetUrl || null,
     expires_at: entry.expires_at,
     memo: entry.request_id,
     description: entry.meta?.description,
@@ -64,13 +71,16 @@ function build402Body(entry, extras = {}, networkConfig = null) {
   if (!response.payment_url) {
     delete response.payment_url;
   }
+  if (!response.network_name) delete response.network_name;
+  if (!response.faucet_url) delete response.faucet_url;
+  if (!response.recipient_chain_id) delete response.recipient_chain_id;
   return response;
 }
 
 function parsePaymentHeader(header) {
   if (!header || typeof header !== 'string') return null;
   const trimmed = header.trim();
-  
+
   // 检查是否是 prepaid credits 支付
   if (trimmed.toLowerCase().startsWith('prepaid')) {
     const parts = trimmed.split(/\s+/).slice(1).join(' ').split(';').map(p => p.trim()).filter(Boolean);
@@ -91,7 +101,41 @@ function parsePaymentHeader(header) {
       memo: 'PREPAID'
     };
   }
-  
+
+  // 检查是否是 Linera 真实转账 (x402-linera-transfer)
+  if (trimmed.toLowerCase().startsWith('x402-linera-transfer')) {
+    const paramsString = trimmed.substring(21).trim();
+    const params = {};
+    const parts = paramsString.split(';').map(p => p.trim()).filter(Boolean);
+    for (const part of parts) {
+      const [key, value] = part.split('=');
+      if (key && typeof value !== 'undefined') {
+        const k = key.trim().toLowerCase();
+        const v = value.trim();
+        params[k] = k === 'message' ? decodeURIComponent(v) : v;
+      }
+    }
+    const result = {
+      isPrepaid: false,
+      isLineraTransfer: true,
+      network: 'linera',
+      senderChainId: params.sender_chain_id || params.senderchainid,
+      senderAddress: params.sender_address || params.senderaddress,
+      amount: params.amount ? parseFloat(params.amount) : null,
+      nonce: params.nonce || null,
+      timestamp: params.timestamp || null,
+      memo: params.memo || 'LINERA_TRANSFER'
+    };
+    if (params.signature) {
+      result.signature = params.signature;
+      result.message = params.message || null;
+      result.transferType = 'signed';
+    } else {
+      result.transferType = 'real';
+    }
+    return result;
+  }
+
   // 原有的 x402 支付逻辑
   if (!trimmed.toLowerCase().startsWith('x402')) return null;
   const [, ...rest] = trimmed.split(/\s+/);
@@ -131,9 +175,26 @@ function isExpired(entry) {
   return Date.now() > Date.parse(entry.expires_at);
 }
 
+async function verifyLineraSignature(message, signature, expectedAddress) {
+  try {
+    const { recoverPersonalSignature } = require('@metamask/eth-sig-util');
+    const recoveredAddress = recoverPersonalSignature({
+      data: message,
+      signature: signature
+    });
+    const recovered = recoveredAddress.toLowerCase();
+    const expected = expectedAddress.toLowerCase();
+    return recovered === expected;
+  } catch (error) {
+    console.error('[Payments] Signature verification failed:', error.message);
+    return false;
+  }
+}
+
 module.exports = {
   createInvoice,
   build402Body,
   parsePaymentHeader,
-  isExpired
+  isExpired,
+  verifyLineraSignature
 };

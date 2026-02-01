@@ -1,7 +1,7 @@
 // 🔧 API Manager for Intelligence Cubed
 // 
 // NOTE:
-// 1. X402 付费通路（Pharos / Solana 等）现在全部走 MCPClient.invokeModel + /mcp/models.invoke。
+// 1. X402 付费通路现在全部走 MCPClient.invokeModel + /mcp/models.invoke。
 // 2. APIManager 只用于普通直连模型（不需要 X402 支付的场景）。
 // 3. 聊天入口里不要再直接调用 streamModelRequest，否则会绕过支付。
 

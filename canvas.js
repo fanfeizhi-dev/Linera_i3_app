@@ -45,26 +45,29 @@ async function getConnectedWallet() {
     }
 }
 
-// ---- x402 / Pharos 支付辅助函数（Canvas 专用）----
-async function sendCanvasPharosPayment(recipient, amountUsdc, decimals) {
-    if (!window.ethereum || typeof ethers === 'undefined') {
-        throw new Error('Wallet provider (MetaMask / ethers) not available');
+// ---- Linera-only：x402 签名支付辅助函数（Canvas 专用）----
+async function sendCanvasLineraSignature(amount, nonce, recipient) {
+    if (!window.ethereum) {
+        throw new Error('MetaMask provider not available');
     }
-    // 确保钱包已经连接
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-    const amountWei = ethers.utils.parseUnits(
-        amountUsdc.toString(),
-        decimals || 18
-    );
-    const tx = await signer.sendTransaction({
-        to: recipient,
-        value: amountWei
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const owner = (accounts && accounts[0] ? String(accounts[0]) : '').toLowerCase();
+    if (!owner) throw new Error('No MetaMask accounts connected');
+
+    // 消息格式：I3 Payment: {amount} LIN, nonce: {nonce}, to: {recipient}
+    const message = `I3 Payment: ${amount} LIN, nonce: ${nonce}, to: ${recipient}`;
+    const msgHex =
+        '0x' +
+        new TextEncoder()
+            .encode(message)
+            .reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+
+    const signature = await window.ethereum.request({
+        method: 'personal_sign',
+        params: [msgHex, owner]
     });
-    // 等待链上确认
-    await tx.wait();
-    return tx; // 保留 tx.hash 给后面 confirm 使用
+    if (!signature) throw new Error('Signature was empty');
+    return { signature, owner, message, amount, nonce, recipient };
 }
 
 // ---- Canvas 版 x402 Invoice 弹窗（对齐 workflow 的 UI + 付款逻辑）----
@@ -75,7 +78,7 @@ function show402InvoiceModal(invoice, workflow) {
             (workflow && workflow.name) ||
             workflowInfo.name ||
             'My Canvas Workflow';
-        const network = invoice.network || 'pharos-testnet';
+        const network = invoice.network || 'linera';
         const nodeCount =
             workflowInfo.node_count ??
             workflowInfo.total_nodes ??
@@ -85,9 +88,10 @@ function show402InvoiceModal(invoice, workflow) {
         const expiresAt = invoice.expires_at
             ? new Date(invoice.expires_at)
             : null;
+        // Linera 使用签名支付，无 explorer
         const explorerBase =
             invoice.explorer_base_url ||
-            'https://pharos-testnet.socialscan.io/tx';
+            null;
         const costBreakdown = invoice.cost_breakdown || [];
         const breakdownRows =
             costBreakdown.map((node) => `
@@ -99,7 +103,7 @@ function show402InvoiceModal(invoice, workflow) {
                         ${node.calls}
                     </td>
                     <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f3f4f6;">
-                        ${Number(node.total_cost || 0).toFixed(6)} PHRS
+                        ${Number(node.total_cost || 0).toFixed(6)} LIN
                     </td>
                 </tr>
             `).join('') || `
@@ -154,7 +158,7 @@ function show402InvoiceModal(invoice, workflow) {
                     </div>
                     <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:14px;">
                         <span style="color:#6b7280;">Total Amount</span>
-                        <span style="font-weight:700;color:#16a34a;">${amount.toFixed(6)} PHRS</span>
+                        <span style="font-weight:700;color:#16a34a;">${amount.toFixed(6)} LIN</span>
                     </div>
                 </div>
                 <!-- Cost breakdown -->
@@ -226,7 +230,7 @@ function show402InvoiceModal(invoice, workflow) {
                             style="padding:9px 18px;font-size:13px;border-radius:999px;border:none;
                                    background:linear-gradient(135deg,#4f46e5,#6366f1);
                                    color:white;font-weight:600;cursor:pointer;">
-                        Pay ${amount.toFixed(6)} PHRS
+                        Pay ${amount.toFixed(6)} LIN
                     </button>
                 </div>
             </div>
@@ -244,28 +248,30 @@ function show402InvoiceModal(invoice, workflow) {
             resolve(null);
         });
 
-        // 支付：调用 MetaMask / Pharos，一次性完成付款
+        // 支付：Linera-only（MetaMask personal_sign）
         payBtn.addEventListener('click', async () => {
             try {
                 payBtn.disabled = true;
                 payBtn.textContent = 'Waiting for wallet...';
-                statusEl.textContent = 'Please confirm the transaction in your wallet.';
+                statusEl.textContent = 'Please confirm the signature request in MetaMask.';
 
-                const tx = await sendCanvasPharosPayment(
-                    invoice.recipient,
+                const sig = await sendCanvasLineraSignature(
                     amount,
-                    invoice.decimals || 18
+                    invoice.nonce,
+                    invoice.recipient
                 );
 
-                statusEl.textContent = 'Payment sent, waiting for confirmation...';
+                statusEl.textContent = 'Signature created.';
 
-                // 把 tx.hash 传回去，后面的 confirm + 保存逻辑沿用原有 purchaseAndPrepayCanvasWorkflow
                 document.body.removeChild(modal);
                 resolve({
-                    hash: tx.hash,
-                    amount,
-                    network,
-                    explorerUrl: explorerBase + '/' + tx.hash
+                    signature: sig.signature,
+                    owner: sig.owner,
+                    message: sig.message,
+                    amount: sig.amount,
+                    nonce: sig.nonce,
+                    recipient: sig.recipient,
+                    network: 'linera'
                 });
             } catch (err) {
                 console.error('x402 canvas payment error:', err);
@@ -273,7 +279,7 @@ function show402InvoiceModal(invoice, workflow) {
                     'Payment failed or was rejected: ' +
                     (err && err.message ? err.message : err);
                 payBtn.disabled = false;
-                payBtn.textContent = `Pay ${amount.toFixed(6)} PHRS`;
+                payBtn.textContent = `Pay ${amount.toFixed(6)} LIN`;
             }
         });
     });
@@ -291,12 +297,13 @@ function showWorkflowExplorerToast(signature, amount, explorerUrlOverride) {
         const toast = document.createElement('div');
         toast.id = 'workflow-payment-toast';
         toast.className = 'workflow-payment-toast';
-        const explorerUrl = explorerUrlOverride || `https://pharos-testnet.socialscan.io/tx/${encodeURIComponent(signature)}`;
+        // Linera 使用签名支付，没有 explorer URL
+        const explorerUrl = explorerUrlOverride || null;
         
         toast.innerHTML = `
             <button class="workflow-payment-toast__close" aria-label="Dismiss">×</button>
             <h4>✅ Workflow Payment Settled</h4>
-            <p>Amount: <strong>${Number(amount).toFixed(6)} PHRS</strong></p>
+            <p>Amount: <strong>${Number(amount).toFixed(6)} LIN</strong></p>
             <a href="${explorerUrl}" target="_blank" rel="noopener noreferrer">View on Explorer →</a>
         `;
         
@@ -422,18 +429,15 @@ async function purchaseAndPrepayCanvasWorkflow(options = {}) {
             nodes: nodePayload
         });
 
-        if (!paymentResult || !paymentResult.hash) {
-            alert('Payment was cancelled or no transaction hash was provided.');
+        if (!paymentResult) {
+            alert('Payment was cancelled.');
             return;
         }
 
         console.log('✅ Payment info collected:', paymentResult);
 
-        // ✅ 正确的 X-Payment 格式：必须以 x402 开头，nonce 用 invoiceData.nonce
-        const xPaymentHeader = `x402 ${invoiceData.network}; ` +
-            `tx=${paymentResult.hash}; ` +
-            `amount=${paymentResult.amount ?? invoiceData.amount_usdc}; ` +
-            `nonce=${invoiceData.nonce}`;
+        // Linera-only：生成签名支付的 X-Payment header
+        const xPaymentHeader = `x402-linera signature=${paymentResult.signature}; message="${paymentResult.message}"; amount=${paymentResult.amount}; nonce=${invoiceData.nonce}`;
 
         console.log('[Canvas][Prepay] X-Payment header:', xPaymentHeader);
 

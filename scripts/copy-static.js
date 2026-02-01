@@ -9,13 +9,16 @@ const FILES = [
   'model-data.js',
   'config.js',
   'api-manager.js',
+  // 402 支付客户端（dist/index.html 直接引用 /mcp-client.js）
+  'mcp-client.js',
+  // Linera 真实转账钱包模块（方案A）
+  'linera-wallet.js',
   'wallet-manager.js',
   'wallet-integration.js',
   'account-dropdown.js',
   'onchain-checkin.js',
   'social-tasks.js',
-  'contract-config.js',
-  'svg/chains/pharos.jpg'
+  'contract-config.js'
 ];
 
 function ensureDir(filePath) {

@@ -1,9 +1,17 @@
-// chains.js — 统一管理 EVM & Solana 的“当前链”与元数据
+// chains.js — 统一管理 EVM & Solana & Linera 的"当前链"与元数据
 
 export const EVM_CHAINS = [
   { key: 'bsc',   type: 'evm', chainIdHex: '0x38', displayName: 'BNB Chain' },
   { key: 'opbnb', type: 'evm', chainIdHex: '0xcc', displayName: 'opBNB' },
 ];
+
+// Linera 网络配置（使用签名支付，不需要 RPC）
+export const LINERA = {
+  key: 'linera',
+  type: 'linera',
+  displayName: 'Linera',
+  explorerBaseUrl: null // Linera 使用签名支付，无链上交易
+};
 
 export const SOLANA = {
   key: 'solana',
@@ -26,20 +34,27 @@ export const SOLANA = {
 };
 
 // 初始化当前链：优先读本地存储键
-const DEFAULT_CHAIN_KEY = localStorage.getItem('currentChainKey') || 'bsc';
+const DEFAULT_CHAIN_KEY = localStorage.getItem('currentChainKey') || 'linera';
 export let CurrentChain = (DEFAULT_CHAIN_KEY === 'solana')
   ? SOLANA
-  : (EVM_CHAINS.find(c => c.key === DEFAULT_CHAIN_KEY) || EVM_CHAINS[0]);
+  : (DEFAULT_CHAIN_KEY === 'linera')
+    ? LINERA
+    : (EVM_CHAINS.find(c => c.key === DEFAULT_CHAIN_KEY) || LINERA);
 
 export function setCurrentChain(key) {
   if (key === 'solana') CurrentChain = SOLANA;
-  else CurrentChain = EVM_CHAINS.find(c => c.key === key) || EVM_CHAINS[0];
+  else if (key === 'linera') CurrentChain = LINERA;
+  else CurrentChain = EVM_CHAINS.find(c => c.key === key) || LINERA;
   localStorage.setItem('currentChainKey', key);
   window.dispatchEvent(new CustomEvent('chainChanged', { detail: { key } }));
 }
 
 export function isSolanaSelected() {
   return CurrentChain?.type === 'solana';
+}
+
+export function isLineraSelected() {
+  return CurrentChain?.type === 'linera';
 }
 
 export function solanaEndpoint() {
@@ -54,3 +69,5 @@ export function solanaExplorerTx(sig) {
 // 让非模块脚本也能用
 window.setCurrentChain  = setCurrentChain;
 window.isSolanaSelected = isSolanaSelected;
+window.isLineraSelected = isLineraSelected;
+window.LINERA = LINERA; // 导出 Linera 配置

@@ -24,6 +24,16 @@ app.use(
   })
 );
 
+// ✅ Linera WASM 需要跨域隔离 (Cross-Origin Isolation)
+// 这些头部让 SharedArrayBuffer 可用，WASM SDK 才能正常工作
+app.use((req, res, next) => {
+  // COOP: 确保顶级文档不与跨域文档共享浏览上下文组
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  // COEP: 使用 credentialless 模式（比 require-corp 更宽松，允许更多跨域资源）
+  res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+  next();
+});
+
 // Parse JSON request bodies
 app.use(express.json());
 
@@ -207,8 +217,9 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Intelligence Cubed Homepage Server is running on port ${PORT}`);
-  console.log(`📱 Local: http://${HOST}:${PORT}`);
-  console.log(`📊 API: http://${HOST}:${PORT}/api/models`);
+  console.log(`📱 Local: http://localhost:${PORT}`);
+  console.log(`📱 Local: http://127.0.0.1:${PORT}`);
+  console.log(`📊 API: http://localhost:${PORT}/api/models`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔧 Node version: ${process.version}`);
 }).on('error', (err) => {
